@@ -2,12 +2,13 @@ import { Routes, Route, NavLink, Navigate } from "react-router-dom";
 import { useAuth } from "@/hooks/use-auth";
 import { useAdmin } from "@/hooks/use-admin";
 import { Button } from "@/components/ui/button";
-import { Activity, Users, FolderKanban, Zap, Brain, LogOut, LayoutDashboard, Shield } from "lucide-react";
+import { Activity, Users, FolderKanban, Zap, Brain, LogOut, LayoutDashboard, Shield, MessageSquare } from "lucide-react";
 import { AdminUsers } from "@/components/admin/AdminUsers";
 import { AdminProjects } from "@/components/admin/AdminProjects";
 import { AdminEvents } from "@/components/admin/AdminEvents";
 import { AdminContexts } from "@/components/admin/AdminContexts";
 import { AdminOverview } from "@/components/admin/AdminOverview";
+import { AdminImpersonateChat } from "@/components/admin/AdminImpersonateChat";
 
 export default function Admin() {
   const { signOut } = useAuth();
@@ -57,6 +58,10 @@ export default function Admin() {
           <Brain className="h-4 w-4" />
           Business Contexts
         </NavLink>
+        <NavLink to="/admin/impersonate" className={linkClass}>
+          <MessageSquare className="h-4 w-4" />
+          Impersonate Chat
+        </NavLink>
         <div className="mt-auto space-y-1">
           <NavLink to="/dashboard" className={linkClass}>
             <Activity className="h-4 w-4" />
@@ -76,6 +81,7 @@ export default function Admin() {
           <Route path="projects" element={<AdminProjects />} />
           <Route path="events" element={<AdminEvents />} />
           <Route path="contexts" element={<AdminContexts />} />
+          <Route path="impersonate" element={<AdminImpersonateChat />} />
         </Routes>
       </main>
     </div>
