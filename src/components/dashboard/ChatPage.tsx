@@ -79,7 +79,9 @@ export function ChatPage() {
     if (!session?.user?.id) return;
     setSaving(true);
     try {
-      const allDone = !!(data.analytics?.posthog_key || data.analytics?.mixpanel_key) &&
+      const analytics = data.analytics as any;
+      const hasAnalytics = !!(analytics?.posthog_key || analytics?.posthog_personal_key || analytics?.mixpanel_key || analytics?.mixpanel_secret || analytics?.ga4_property_id);
+      const allDone = hasAnalytics &&
         !!data.codebase?.github_url &&
         !!data.business?.product_description;
 
