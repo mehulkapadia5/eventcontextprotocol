@@ -7,6 +7,24 @@ const corsHeaders = {
     "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
+const QUERY_TOOL = {
+  type: "function",
+  function: {
+    name: "query_events",
+    description: "Execute a read-only SQL query against the user's event database to answer data questions.",
+    parameters: {
+      type: "object",
+      properties: {
+        sql: {
+          type: "string",
+          description: "A valid PostgreSQL SELECT or WITH...SELECT query to run against the events table.",
+        },
+      },
+      required: ["sql"],
+    },
+  },
+};
+
 const SCHEMA_CONTEXT = `
 ## DATABASE SCHEMA (use this to write SQL queries)
 
