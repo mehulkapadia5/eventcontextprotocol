@@ -14,13 +14,104 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      events: {
+        Row: {
+          created_at: string
+          event_name: string
+          id: string
+          page_url: string | null
+          project_id: string
+          properties: Json | null
+          timestamp: string
+          user_identifier: string | null
+        }
+        Insert: {
+          created_at?: string
+          event_name: string
+          id?: string
+          page_url?: string | null
+          project_id: string
+          properties?: Json | null
+          timestamp?: string
+          user_identifier?: string | null
+        }
+        Update: {
+          created_at?: string
+          event_name?: string
+          id?: string
+          page_url?: string | null
+          project_id?: string
+          properties?: Json | null
+          timestamp?: string
+          user_identifier?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "events_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      profiles: {
+        Row: {
+          created_at: string
+          display_name: string | null
+          id: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          display_name?: string | null
+          id?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          display_name?: string | null
+          id?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      projects: {
+        Row: {
+          api_key: string
+          created_at: string
+          id: string
+          name: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          api_key?: string
+          created_at?: string
+          id?: string
+          name: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          api_key?: string
+          created_at?: string
+          id?: string
+          name?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      is_project_owner: { Args: { p_project_id: string }; Returns: boolean }
     }
     Enums: {
       [_ in never]: never
