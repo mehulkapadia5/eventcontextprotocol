@@ -46,18 +46,22 @@ const CHAT_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/business-con
 const ANALYTICS_CHAT_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/analytics-chat`;
 
 export function StepBusinessContext({ data, onUpdate, onFinish, onClearContext, isSubmitting, inline, fullPage, repoContext }: StepBusinessContextProps) {
-  const initialMessage = repoContext
-    ? "Analyzing your codebase... one moment."
-    : "Hey! I'd love to learn about your product so we can tailor ECP for you. What does your product do?";
+  const hasExistingData = !!(data.product_description || data.audience || data.goals);
+  const initialMessage = hasExistingData
+    ? "Welcome back! I remember your business context. ✨ You can ask me analytics questions or update your context anytime."
+    : repoContext
+      ? "Analyzing your codebase... one moment."
+      : "Hey! I'd love to learn about your product so we can tailor ECP for you. What does your product do?";
 
   const [messages, setMessages] = useState<Msg[]>([
     { role: "assistant", content: initialMessage, timestamp: new Date() },
   ]);
   const [input, setInput] = useState("");
   const [isLoading, setIsLoading] = useState(false);
-  const [contextReady, setContextReady] = useState(false);
-  const [analyticsMode, setAnalyticsMode] = useState(false);
-  const [aiConfidence, setAiConfidence] = useState(0);
+  const hasExistingContext = !!(data.product_description || data.audience || data.goals);
+  const [contextReady, setContextReady] = useState(hasExistingContext);
+  const [analyticsMode, setAnalyticsMode] = useState(hasExistingContext);
+  const [aiConfidence, setAiConfidence] = useState(hasExistingContext ? 100 : 0);
   const [hasAutoSent, setHasAutoSent] = useState(false);
   const [activeModel, setActiveModel] = useState<string | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
