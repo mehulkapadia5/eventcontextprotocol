@@ -1,10 +1,9 @@
 import { Routes, Route, NavLink } from "react-router-dom";
 import { useAuth } from "@/hooks/use-auth";
 import { Button } from "@/components/ui/button";
-import { Activity, FolderOpen, LayoutDashboard, LogOut, MessageSquare, Search } from "lucide-react";
+import { Activity, LayoutDashboard, LogOut, MessageSquare, Search } from "lucide-react";
 import { DashboardOverview } from "@/components/dashboard/DashboardOverview";
 import { EventsExplorer } from "@/components/dashboard/EventsExplorer";
-import { ProjectsPage } from "@/components/dashboard/ProjectsPage";
 import { ChatPage } from "@/components/dashboard/ChatPage";
 
 export default function Dashboard() {
@@ -30,10 +29,6 @@ export default function Dashboard() {
           <Search className="h-4 w-4" />
           Events Explorer
         </NavLink>
-        <NavLink to="/dashboard/projects" className={linkClass}>
-          <FolderOpen className="h-4 w-4" />
-          Projects
-        </NavLink>
         <NavLink to="/dashboard/chat" className={linkClass}>
           <MessageSquare className="h-4 w-4" />
           Chat
@@ -50,7 +45,6 @@ export default function Dashboard() {
         <Routes>
           <Route index element={<DashboardOverview />} />
           <Route path="events" element={<EventsExplorer />} />
-          <Route path="projects" element={<ProjectsPage />} />
           <Route path="chat" element={<ChatPage />} />
         </Routes>
       </main>

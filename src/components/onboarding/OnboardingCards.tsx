@@ -1,11 +1,12 @@
 import { useState, useEffect, useCallback } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { useNavigate } from "react-router-dom";
 import { Card, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Label } from "@/components/ui/label";
-import { Activity, GitBranch, Sparkles, Check, CheckCircle2, MessageSquare, Loader2 } from "lucide-react";
+import { Activity, GitBranch, Sparkles, Check, CheckCircle2, MessageSquare, Loader2, FolderPlus, Key } from "lucide-react";
 import { Separator } from "@/components/ui/separator";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { supabase } from "@/integrations/supabase/client";
@@ -16,6 +17,7 @@ interface OnboardingData {
   analytics?: { posthog_key?: string; mixpanel_key?: string };
   codebase?: { github_url?: string };
   business?: { product_description?: string; audience?: string; goals?: string; [key: string]: string | undefined };
+  project_created?: boolean;
 }
 
 export function OnboardingCards() {
@@ -25,11 +27,25 @@ export function OnboardingCards() {
   const [loading, setLoading] = useState(true);
   const [openDialog, setOpenDialog] = useState<number | null>(null);
   const [saving, setSaving] = useState(false);
-  const [connected, setConnected] = useState<"posthog" | "mixpanel" | "github" | null>(null);
+  const [connected, setConnected] = useState<"posthog" | "mixpanel" | "github" | "project" | null>(null);
 
   const [posthogKey, setPosthogKey] = useState("");
   const [mixpanelKey, setMixpanelKey] = useState("");
   const [githubUrl, setGithubUrl] = useState("");
+  const [newProjectName, setNewProjectName] = useState("");
+  const [creatingProject, setCreatingProject] = useState(false);
+
+  const { data: projects, refetch: refetchProjects } = useQuery({
+    queryKey: ["projects"],
+    queryFn: async () => {
+      const { data, error } = await supabase.from("projects").select("*").order("created_at", { ascending: false });
+      if (error) throw error;
+      return data;
+    },
+    enabled: !!session?.user?.id,
+  });
+
+  const hasProject = (projects?.length ?? 0) > 0;
 
   const fetchProfile = useCallback(async () => {
     if (!session?.user?.id) return;
@@ -50,13 +66,14 @@ export function OnboardingCards() {
 
   useEffect(() => { fetchProfile(); }, [fetchProfile]);
 
-  const saveData = async (updated: OnboardingData, connectedType?: "posthog" | "mixpanel" | "github") => {
+  const saveData = async (updated: OnboardingData, connectedType?: "posthog" | "mixpanel" | "github" | "project") => {
     if (!session?.user?.id) return;
     setSaving(true);
     try {
       const allDone = !!(updated.analytics?.posthog_key || updated.analytics?.mixpanel_key) &&
         !!updated.codebase?.github_url &&
-        !!updated.business?.product_description;
+        !!updated.business?.product_description &&
+        hasProject;
 
       const { error } = await supabase
         .from("profiles")
@@ -83,17 +100,40 @@ export function OnboardingCards() {
     }
   };
 
+  const handleCreateProject = async () => {
+    if (!session?.user?.id || !newProjectName.trim()) return;
+    setCreatingProject(true);
+    try {
+      const { error } = await supabase
+        .from("projects")
+        .insert({ name: newProjectName.trim(), user_id: session.user.id });
+      if (error) throw error;
+      await refetchProjects();
+      setNewProjectName("");
+      setConnected("project");
+      setTimeout(() => {
+        setConnected(null);
+        setOpenDialog(null);
+      }, 1500);
+    } catch {
+      toast.error("Failed to create project.");
+    } finally {
+      setCreatingProject(false);
+    }
+  };
+
   const analyticsConnected = !!(data.analytics?.posthog_key || data.analytics?.mixpanel_key);
   const codebaseConnected = !!data.codebase?.github_url;
   const businessDone = !!data.business?.product_description;
 
-  if (!loading && analyticsConnected && codebaseConnected && businessDone) return null;
+  if (!loading && analyticsConnected && codebaseConnected && businessDone && hasProject) return null;
   if (loading) return null;
 
   const steps = [
     { title: "Connect Analytics", description: "Link PostHog or Mixpanel to import event data", icon: Activity, done: analyticsConnected },
     { title: "Connect Codebase", description: "Link your GitHub repository for code-aware insights", icon: GitBranch, done: codebaseConnected },
     { title: "Business Context", description: "Chat with AI to describe your product", icon: Sparkles, done: businessDone },
+    { title: "Create Project", description: "Set up a project to get your API key for event tracking", icon: Key, done: hasProject },
   ];
 
   return (
@@ -106,7 +146,7 @@ export function OnboardingCards() {
           </Badge>
         </div>
 
-        <div className="grid gap-3 md:grid-cols-3">
+        <div className="grid gap-3 md:grid-cols-4">
           {steps.map((step, i) => (
             <Card
               key={i}
@@ -134,7 +174,9 @@ export function OnboardingCards() {
                   {!step.done && (
                     i === 2
                       ? <MessageSquare className="h-4 w-4 text-muted-foreground" />
-                      : <Button variant="outline" size="sm" onClick={(e) => { e.stopPropagation(); setOpenDialog(i); }}>Connect</Button>
+                      : <Button variant="outline" size="sm" onClick={(e) => { e.stopPropagation(); setOpenDialog(i); }}>
+                          {i === 3 ? "Create" : "Connect"}
+                        </Button>
                   )}
                 </div>
               </CardHeader>
@@ -229,6 +271,43 @@ export function OnboardingCards() {
                   onClick={() => saveData({ ...data, codebase: { github_url: githubUrl } }, "github")}
                 >
                   {saving ? <><Loader2 className="h-4 w-4 animate-spin mr-2" /> Verifying...</> : "Connect Repository"}
+                </Button>
+              </div>
+            </>
+          )}
+        </DialogContent>
+      </Dialog>
+
+      {/* Create Project Dialog */}
+      <Dialog open={openDialog === 3} onOpenChange={(open) => { if (!open) { setOpenDialog(null); setConnected(null); } }}>
+        <DialogContent className="sm:max-w-md">
+          {connected === "project" ? (
+            <div className="flex flex-col items-center gap-3 py-8">
+              <div className="w-12 h-12 rounded-full bg-primary/20 flex items-center justify-center">
+                <CheckCircle2 className="h-6 w-6 text-primary" />
+              </div>
+              <p className="font-semibold text-lg">Project Created!</p>
+              <p className="text-sm text-muted-foreground">Your API key is ready to use.</p>
+            </div>
+          ) : (
+            <>
+              <DialogHeader>
+                <DialogTitle>Create Project</DialogTitle>
+                <DialogDescription>Create a project to get an API key for event tracking.</DialogDescription>
+              </DialogHeader>
+              <div className="space-y-4 pt-2">
+                <div className="space-y-2">
+                  <Label>Project Name</Label>
+                  <Input placeholder="My App" value={newProjectName} onChange={(e) => setNewProjectName(e.target.value)} />
+                </div>
+                <Button
+                  className="w-full"
+                  disabled={!newProjectName.trim() || creatingProject}
+                  onClick={handleCreateProject}
+                >
+                  {creatingProject ? <><Loader2 className="h-4 w-4 animate-spin mr-2" /> Creating...</> : <>
+                    <FolderPlus className="h-4 w-4 mr-2" /> Create Project
+                  </>}
                 </Button>
               </div>
             </>
