@@ -7,7 +7,7 @@ import { BarChart3, Code2, Briefcase, Check, ChevronDown, ChevronUp } from "luci
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/use-auth";
 import { toast } from "sonner";
-import { StepBusinessContext } from "./StepBusinessContext";
+import { StepBusinessContext } from "@/components/onboarding/StepBusinessContext";
 
 interface OnboardingData {
   analytics?: { posthog_key?: string; mixpanel_key?: string };
