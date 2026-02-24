@@ -1,13 +1,16 @@
 import { Routes, Route, NavLink } from "react-router-dom";
 import { useAuth } from "@/hooks/use-auth";
+import { useAdmin } from "@/hooks/use-admin";
 import { Button } from "@/components/ui/button";
-import { Activity, LayoutDashboard, LogOut, MessageSquare, Search } from "lucide-react";
+import { Activity, LayoutDashboard, LogOut, MessageSquare, Search, FileText, Shield } from "lucide-react";
 import { DashboardOverview } from "@/components/dashboard/DashboardOverview";
 import { EventsExplorer } from "@/components/dashboard/EventsExplorer";
 import { ChatPage } from "@/components/dashboard/ChatPage";
+import { ContextPage } from "@/components/dashboard/ContextPage";
 
 export default function Dashboard() {
   const { signOut } = useAuth();
+  const { isAdmin } = useAdmin();
 
   const linkClass = ({ isActive }: { isActive: boolean }) =>
     `flex items-center gap-2 px-3 py-2 text-sm rounded-md transition-colors ${
@@ -33,7 +36,17 @@ export default function Dashboard() {
           <MessageSquare className="h-4 w-4" />
           Chat
         </NavLink>
-        <div className="mt-auto">
+        <NavLink to="/dashboard/context" className={linkClass}>
+          <FileText className="h-4 w-4" />
+          Context Memory
+        </NavLink>
+        <div className="mt-auto space-y-1">
+          {isAdmin && (
+            <NavLink to="/admin" className={linkClass}>
+              <Shield className="h-4 w-4" />
+              Admin Panel
+            </NavLink>
+          )}
           <Button variant="ghost" size="sm" className="w-full justify-start text-muted-foreground" onClick={signOut}>
             <LogOut className="h-4 w-4 mr-2" />
             Sign Out
@@ -46,6 +59,7 @@ export default function Dashboard() {
           <Route index element={<DashboardOverview />} />
           <Route path="events" element={<EventsExplorer />} />
           <Route path="chat" element={<ChatPage />} />
+          <Route path="context" element={<ContextPage />} />
         </Routes>
       </main>
     </div>
