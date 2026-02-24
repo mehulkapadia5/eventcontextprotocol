@@ -1,11 +1,13 @@
 import { useState } from "react";
 import { useSearchParams, useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
+import { lovable } from "@/integrations/lovable/index";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Separator } from "@/components/ui/separator";
 import { Activity } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { Link } from "react-router-dom";
@@ -16,6 +18,15 @@ export default function Auth() {
   const [loading, setLoading] = useState(false);
   const { toast } = useToast();
   const navigate = useNavigate();
+
+  const handleGoogleSignIn = async () => {
+    const { error } = await lovable.auth.signInWithOAuth("google", {
+      redirect_uri: window.location.origin,
+    });
+    if (error) {
+      toast({ variant: "destructive", title: "Google sign-in failed", description: String(error) });
+    }
+  };
 
   const handleLogin = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -88,6 +99,14 @@ export default function Auth() {
                     {loading ? "Signing in..." : "Sign In"}
                   </Button>
                 </form>
+                <div className="flex items-center gap-3 my-4">
+                  <Separator className="flex-1" />
+                  <span className="text-xs text-muted-foreground">or</span>
+                  <Separator className="flex-1" />
+                </div>
+                <Button variant="outline" className="w-full" onClick={handleGoogleSignIn}>
+                  Continue with Google
+                </Button>
               </TabsContent>
               <TabsContent value="signup">
                 <CardTitle className="mb-1">Create an account</CardTitle>
@@ -105,6 +124,14 @@ export default function Auth() {
                     {loading ? "Creating account..." : "Create Account"}
                   </Button>
                 </form>
+                <div className="flex items-center gap-3 my-4">
+                  <Separator className="flex-1" />
+                  <span className="text-xs text-muted-foreground">or</span>
+                  <Separator className="flex-1" />
+                </div>
+                <Button variant="outline" className="w-full" onClick={handleGoogleSignIn}>
+                  Continue with Google
+                </Button>
               </TabsContent>
             </CardContent>
           </Tabs>
