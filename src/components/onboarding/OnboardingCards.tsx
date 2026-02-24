@@ -7,9 +7,9 @@ import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Label } from "@/components/ui/label";
 import { Check, CheckCircle2, MessageSquare, Loader2, FolderPlus, Sparkles, Key } from "lucide-react";
-import { GitHubIcon } from "@/components/icons/GitHubIcon";
 import posthogLogo from "@/assets/posthog-logo.png";
 import mixpanelLogo from "@/assets/mixpanel-logo.png";
+import githubLogo from "@/assets/github-logo.png";
 import { Separator } from "@/components/ui/separator";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { supabase } from "@/integrations/supabase/client";
@@ -134,7 +134,7 @@ export function OnboardingCards() {
 
   const steps = [
     { title: "Connect Analytics", description: "Link PostHog or Mixpanel to import event data", logo: <div className="flex items-center gap-2"><img src={posthogLogo} alt="PostHog" className="h-5 w-5" /><img src={mixpanelLogo} alt="Mixpanel" className="h-5 w-5" /></div>, done: analyticsConnected },
-    { title: "Connect Codebase", description: "Link your GitHub repository for code-aware insights", logo: <GitHubIcon className="h-5 w-5" />, done: codebaseConnected },
+    { title: "Connect Codebase", description: "Link your GitHub repository for code-aware insights", logo: <img src={githubLogo} alt="GitHub" className="h-5 w-5" />, done: codebaseConnected },
     { title: "Business Context", description: "Chat with AI to describe your product", logo: <Sparkles className="h-4 w-4 text-muted-foreground" />, done: businessDone },
     { title: "Create Project", description: "Set up a project to get your API key for event tracking", logo: <Key className="h-4 w-4 text-muted-foreground" />, done: hasProject },
   ];
