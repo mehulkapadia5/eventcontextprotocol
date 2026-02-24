@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Label } from "@/components/ui/label";
-import { BarChart3, Code2, Briefcase, Check, MessageSquare } from "lucide-react";
+import { Activity, GitBranch, Sparkles, Check, MessageSquare } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/use-auth";
@@ -82,9 +82,9 @@ export function OnboardingCards() {
   if (loading) return null;
 
   const steps = [
-    { title: "Connect Analytics", description: "Link PostHog or Mixpanel to import event data", icon: BarChart3, done: analyticsConnected },
-    { title: "Connect Codebase", description: "Link your GitHub repository for code-aware insights", icon: Code2, done: codebaseConnected },
-    { title: "Business Context", description: "Chat with AI to describe your product", icon: Briefcase, done: businessDone },
+    { title: "Connect Analytics", description: "Link PostHog or Mixpanel to import event data", icon: Activity, done: analyticsConnected },
+    { title: "Connect Codebase", description: "Link your GitHub repository for code-aware insights", icon: GitBranch, done: codebaseConnected },
+    { title: "Business Context", description: "Chat with AI to describe your product", icon: Sparkles, done: businessDone },
   ];
 
   return (
