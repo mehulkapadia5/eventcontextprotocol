@@ -7,6 +7,62 @@ const corsHeaders = {
     "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
+// Helper to create JWT from service account for Google APIs
+async function createGoogleJWT(serviceAccount: any): Promise<string> {
+  const header = { alg: "RS256", typ: "JWT" };
+  const now = Math.floor(Date.now() / 1000);
+  const claim = {
+    iss: serviceAccount.client_email,
+    scope: "https://www.googleapis.com/auth/analytics.readonly",
+    aud: "https://oauth2.googleapis.com/token",
+    iat: now,
+    exp: now + 3600,
+  };
+
+  const encode = (obj: any) => btoa(JSON.stringify(obj)).replace(/=/g, "").replace(/\+/g, "-").replace(/\//g, "_");
+  const headerB64 = encode(header);
+  const claimB64 = encode(claim);
+  const signingInput = `${headerB64}.${claimB64}`;
+
+  // Import the private key
+  const pemContent = serviceAccount.private_key
+    .replace("-----BEGIN PRIVATE KEY-----", "")
+    .replace("-----END PRIVATE KEY-----", "")
+    .replace(/\n/g, "");
+  const binaryKey = Uint8Array.from(atob(pemContent), (c) => c.charCodeAt(0));
+  
+  const key = await crypto.subtle.importKey(
+    "pkcs8",
+    binaryKey,
+    { name: "RSASSA-PKCS1-v1_5", hash: "SHA-256" },
+    false,
+    ["sign"]
+  );
+
+  const signature = await crypto.subtle.sign("RSASSA-PKCS1-v1_5", key, new TextEncoder().encode(signingInput));
+  const sigB64 = btoa(String.fromCharCode(...new Uint8Array(signature)))
+    .replace(/=/g, "")
+    .replace(/\+/g, "-")
+    .replace(/\//g, "_");
+
+  return `${signingInput}.${sigB64}`;
+}
+
+async function getGoogleAccessToken(serviceAccount: any): Promise<string> {
+  const jwt = await createGoogleJWT(serviceAccount);
+  const res = await fetch("https://oauth2.googleapis.com/token", {
+    method: "POST",
+    headers: { "Content-Type": "application/x-www-form-urlencoded" },
+    body: `grant_type=urn:ietf:params:oauth:grant-type:jwt-bearer&assertion=${jwt}`,
+  });
+  if (!res.ok) {
+    const err = await res.text();
+    throw new Error(`Google OAuth error (${res.status}): ${err}`);
+  }
+  const data = await res.json();
+  return data.access_token;
+}
+
 serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
@@ -95,7 +151,6 @@ serve(async (req) => {
       const projId = analytics.posthog_project_id;
       const apiKey = analytics.posthog_personal_key;
 
-      // Use HogQL query endpoint
       const res = await fetch(`${phHost}/api/projects/${projId}/query`, {
         method: "POST",
         headers: {
@@ -120,7 +175,6 @@ serve(async (req) => {
       }
 
       const phData = await res.json();
-      // HogQL returns { results: [[event, distinct_id, properties, timestamp], ...], columns: [...] }
       const rows = phData.results || [];
       fetchedEvents = rows.map((row: any[]) => ({
         project_id: projectId,
@@ -138,7 +192,6 @@ serve(async (req) => {
       const mpProjectId = analytics.mixpanel_project_id;
       const mpSecret = analytics.mixpanel_secret;
 
-      // Fetch last 7 days
       const toDate = new Date().toISOString().split("T")[0];
       const fromDate = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString().split("T")[0];
 
@@ -161,7 +214,6 @@ serve(async (req) => {
         );
       }
 
-      // Mixpanel returns JSONL (one JSON per line)
       const text = await res.text();
       const lines = text.trim().split("\n").filter(Boolean);
       fetchedEvents = lines.map((line: string) => {
@@ -183,19 +235,103 @@ serve(async (req) => {
       }).filter(Boolean);
     }
 
+    // --- Google Analytics 4 ---
+    if (analytics.ga_property_id && analytics.ga_service_account_json && fetchedEvents.length === 0) {
+      source = "google_analytics";
+      try {
+        const serviceAccount = JSON.parse(analytics.ga_service_account_json);
+        const accessToken = await getGoogleAccessToken(serviceAccount);
+        const propertyId = analytics.ga_property_id;
+
+        // Fetch last 7 days of event data using GA4 Data API
+        const toDate = new Date().toISOString().split("T")[0];
+        const fromDate = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString().split("T")[0];
+
+        const gaRes = await fetch(
+          `https://analyticsdata.googleapis.com/v1beta/properties/${propertyId}:runReport`,
+          {
+            method: "POST",
+            headers: {
+              Authorization: `Bearer ${accessToken}`,
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({
+              dateRanges: [{ startDate: fromDate, endDate: toDate }],
+              dimensions: [
+                { name: "eventName" },
+                { name: "date" },
+                { name: "pagePathPlusQueryString" },
+              ],
+              metrics: [
+                { name: "eventCount" },
+                { name: "totalUsers" },
+              ],
+              limit: 500,
+              orderBys: [{ dimension: { dimensionName: "date", orderType: "ALPHANUMERIC" }, desc: true }],
+            }),
+          }
+        );
+
+        if (!gaRes.ok) {
+          const errText = await gaRes.text();
+          console.error("GA4 API error:", gaRes.status, errText);
+          return new Response(
+            JSON.stringify({ error: `Google Analytics API error (${gaRes.status}): ${errText}` }),
+            { status: 502, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+          );
+        }
+
+        const gaData = await gaRes.json();
+        const gaRows = gaData.rows || [];
+
+        fetchedEvents = gaRows.map((row: any) => {
+          const eventName = row.dimensionValues?.[0]?.value || "unknown";
+          const dateStr = row.dimensionValues?.[1]?.value || "";
+          const pagePath = row.dimensionValues?.[2]?.value || null;
+          const eventCount = parseInt(row.metricValues?.[0]?.value || "1", 10);
+          const totalUsers = parseInt(row.metricValues?.[1]?.value || "0", 10);
+
+          // Parse GA date format YYYYMMDD
+          const year = dateStr.slice(0, 4);
+          const month = dateStr.slice(4, 6);
+          const day = dateStr.slice(6, 8);
+          const timestamp = dateStr ? `${year}-${month}-${day}T00:00:00Z` : new Date().toISOString();
+
+          return {
+            project_id: projectId,
+            event_name: eventName,
+            user_identifier: null,
+            properties: {
+              source: "google_analytics",
+              event_count: eventCount,
+              total_users: totalUsers,
+            },
+            timestamp,
+            page_url: pagePath,
+          };
+        });
+      } catch (gaErr) {
+        console.error("GA4 processing error:", gaErr);
+        return new Response(
+          JSON.stringify({ error: `Google Analytics error: ${gaErr instanceof Error ? gaErr.message : "Unknown error"}` }),
+          { status: 502, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+    }
+
     if (fetchedEvents.length === 0) {
       return new Response(
         JSON.stringify({
           success: true,
           source: source || "none",
           count: 0,
-          message: "No events found or no valid read API keys configured. Make sure you've provided a Personal API Key (PostHog) or API Secret (Mixpanel).",
+          message: "No events found or no valid read API keys configured. Make sure you've provided valid credentials.",
         }),
         { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
-    // Insert events (upsert-like: skip duplicates by checking existing timestamps)
+    // Insert events
     const { error: insertError } = await adminSupabase.from("events").insert(fetchedEvents);
 
     if (insertError) {

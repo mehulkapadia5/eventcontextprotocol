@@ -5,25 +5,23 @@ import { Input } from "@/components/ui/input";
 import { BarChart3, Check } from "lucide-react";
 
 interface StepAnalyticsProps {
-  data: { posthog_key?: string; mixpanel_key?: string };
-  onUpdate: (data: { posthog_key?: string; mixpanel_key?: string }) => void;
+  data: { posthog_key?: string; mixpanel_key?: string; ga_property_id?: string };
+  onUpdate: (data: { posthog_key?: string; mixpanel_key?: string; ga_property_id?: string }) => void;
   onNext: () => void;
   onSkip: () => void;
 }
 
 export function StepAnalytics({ data, onUpdate, onNext, onSkip }: StepAnalyticsProps) {
-  const [connecting, setConnecting] = useState<"posthog" | "mixpanel" | null>(null);
+  const [connecting, setConnecting] = useState<"posthog" | "mixpanel" | "ga" | null>(null);
 
-  const handleConnect = (provider: "posthog" | "mixpanel") => {
-    if (connecting === provider) {
-      setConnecting(null);
-    } else {
-      setConnecting(provider);
-    }
+  const handleConnect = (provider: "posthog" | "mixpanel" | "ga") => {
+    setConnecting(connecting === provider ? null : provider);
   };
 
-  const isConnected = (provider: "posthog" | "mixpanel") => {
-    return provider === "posthog" ? !!data.posthog_key : !!data.mixpanel_key;
+  const isConnected = (provider: "posthog" | "mixpanel" | "ga") => {
+    if (provider === "posthog") return !!data.posthog_key;
+    if (provider === "mixpanel") return !!data.mixpanel_key;
+    return !!data.ga_property_id;
   };
 
   return (
@@ -34,7 +32,7 @@ export function StepAnalytics({ data, onUpdate, onNext, onSkip }: StepAnalyticsP
         </div>
         <h2 className="text-2xl font-bold">Connect Analytics</h2>
         <p className="text-muted-foreground max-w-md mx-auto">
-          Import your existing event data from PostHog or Mixpanel to get started faster.
+          Import your existing event data from PostHog, Mixpanel, or Google Analytics.
         </p>
       </div>
 
@@ -66,11 +64,7 @@ export function StepAnalytics({ data, onUpdate, onNext, onSkip }: StepAnalyticsP
                   value={data.posthog_key || ""}
                   onChange={(e) => onUpdate({ ...data, posthog_key: e.target.value })}
                 />
-                <Button
-                  size="sm"
-                  disabled={!data.posthog_key}
-                  onClick={() => setConnecting(null)}
-                >
+                <Button size="sm" disabled={!data.posthog_key} onClick={() => setConnecting(null)}>
                   Save
                 </Button>
               </div>
@@ -105,11 +99,42 @@ export function StepAnalytics({ data, onUpdate, onNext, onSkip }: StepAnalyticsP
                   value={data.mixpanel_key || ""}
                   onChange={(e) => onUpdate({ ...data, mixpanel_key: e.target.value })}
                 />
-                <Button
-                  size="sm"
-                  disabled={!data.mixpanel_key}
-                  onClick={() => setConnecting(null)}
-                >
+                <Button size="sm" disabled={!data.mixpanel_key} onClick={() => setConnecting(null)}>
+                  Save
+                </Button>
+              </div>
+            </CardContent>
+          )}
+        </Card>
+
+        {/* Google Analytics */}
+        <Card className={isConnected("ga") ? "border-primary" : ""}>
+          <CardHeader className="pb-3">
+            <div className="flex items-center justify-between">
+              <div>
+                <CardTitle className="text-lg">Google Analytics 4</CardTitle>
+                <CardDescription>Web analytics by Google</CardDescription>
+              </div>
+              {isConnected("ga") ? (
+                <div className="flex items-center gap-1 text-sm text-primary">
+                  <Check className="h-4 w-4" /> Connected
+                </div>
+              ) : (
+                <Button variant="outline" size="sm" onClick={() => handleConnect("ga")}>
+                  {connecting === "ga" ? "Cancel" : "Connect"}
+                </Button>
+              )}
+            </div>
+          </CardHeader>
+          {connecting === "ga" && (
+            <CardContent className="pt-0">
+              <div className="flex gap-2">
+                <Input
+                  placeholder="Enter GA4 Property ID"
+                  value={data.ga_property_id || ""}
+                  onChange={(e) => onUpdate({ ...data, ga_property_id: e.target.value })}
+                />
+                <Button size="sm" disabled={!data.ga_property_id} onClick={() => setConnecting(null)}>
                   Save
                 </Button>
               </div>
