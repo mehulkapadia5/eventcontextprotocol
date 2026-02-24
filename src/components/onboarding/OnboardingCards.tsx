@@ -7,9 +7,9 @@ import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Label } from "@/components/ui/label";
 import { Check, CheckCircle2, MessageSquare, Loader2, FolderPlus, Sparkles, Key } from "lucide-react";
-import { PostHogIcon } from "@/components/icons/PostHogIcon";
-import { MixpanelIcon } from "@/components/icons/MixpanelIcon";
 import { GitHubIcon } from "@/components/icons/GitHubIcon";
+import posthogLogo from "@/assets/posthog-logo.png";
+import mixpanelLogo from "@/assets/mixpanel-logo.png";
 import { Separator } from "@/components/ui/separator";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { supabase } from "@/integrations/supabase/client";
@@ -133,7 +133,7 @@ export function OnboardingCards() {
   if (loading) return null;
 
   const steps = [
-    { title: "Connect Analytics", description: "Link PostHog or Mixpanel to import event data", logo: <div className="flex -space-x-1"><PostHogIcon className="h-4 w-4" /><MixpanelIcon className="h-4 w-4 rounded-full" /></div>, done: analyticsConnected },
+    { title: "Connect Analytics", description: "Link PostHog or Mixpanel to import event data", logo: <div className="flex -space-x-1"><img src={posthogLogo} alt="PostHog" className="h-4 w-4 rounded-sm" /><img src={mixpanelLogo} alt="Mixpanel" className="h-4 w-4 rounded-sm" /></div>, done: analyticsConnected },
     { title: "Connect Codebase", description: "Link your GitHub repository for code-aware insights", logo: <GitHubIcon className="h-5 w-5" />, done: codebaseConnected },
     { title: "Business Context", description: "Chat with AI to describe your product", logo: <Sparkles className="h-4 w-4 text-muted-foreground" />, done: businessDone },
     { title: "Create Project", description: "Set up a project to get your API key for event tracking", logo: <Key className="h-4 w-4 text-muted-foreground" />, done: hasProject },
