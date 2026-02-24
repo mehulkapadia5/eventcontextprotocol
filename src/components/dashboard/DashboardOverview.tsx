@@ -4,6 +4,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Activity, BarChart3, CalendarDays, Users } from "lucide-react";
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, LineChart, Line } from "recharts";
+import { OnboardingCards } from "@/components/onboarding/OnboardingCards";
 
 export function DashboardOverview() {
   const { session } = useAuth();
@@ -75,6 +76,8 @@ export function DashboardOverview() {
   return (
     <div className="space-y-6">
       <h1 className="text-2xl font-bold">Dashboard</h1>
+
+      <OnboardingCards />
 
       {projectIds.length === 0 && (
         <Card>
