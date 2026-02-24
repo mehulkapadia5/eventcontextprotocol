@@ -6,7 +6,7 @@ import { StepBusinessContext } from "@/components/onboarding/StepBusinessContext
 
 interface OnboardingData {
   analytics?: { posthog_key?: string; mixpanel_key?: string };
-  codebase?: { github_url?: string };
+  codebase?: { github_url?: string; github_pat?: string };
   business?: { product_description?: string; audience?: string; goals?: string; [key: string]: string | undefined };
 }
 
@@ -16,6 +16,7 @@ export function ChatPage() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [resetKey, setResetKey] = useState(0);
+  const [repoContext, setRepoContext] = useState<string | null>(null);
 
   const fetchProfile = useCallback(async () => {
     if (!session?.user?.id) return;
@@ -25,9 +26,41 @@ export function ChatPage() {
       .eq("user_id", session.user.id)
       .single();
     const od = (profile as any)?.onboarding_data as OnboardingData | null;
-    if (od) setData(od);
+    if (od) {
+      setData(od);
+      // Fetch GitHub context if repo is connected
+      if (od.codebase?.github_url) {
+        fetchGitHubContext(od.codebase.github_url, od.codebase.github_pat);
+      }
+    }
     setLoading(false);
   }, [session?.user?.id]);
+
+  const fetchGitHubContext = async (githubUrl: string, githubPat?: string) => {
+    try {
+      const { data: ctx, error } = await supabase.functions.invoke("fetch-github-context", {
+        body: { github_url: githubUrl, github_pat: githubPat },
+      });
+      if (error) throw error;
+      if (ctx && !ctx.error) {
+        const summary = [
+          `Repository: ${ctx.repo}`,
+          ctx.description ? `Description: ${ctx.description}` : "",
+          ctx.language ? `Primary language: ${ctx.language}` : "",
+          ctx.topics?.length ? `Topics: ${ctx.topics.join(", ")}` : "",
+          `File tree (${ctx.file_tree?.length || 0} files): ${(ctx.file_tree || []).slice(0, 50).join(", ")}`,
+          ...Object.entries(ctx.key_files || {}).map(
+            ([path, content]) => `\n--- ${path} ---\n${(content as string).slice(0, 2000)}`
+          ),
+        ]
+          .filter(Boolean)
+          .join("\n");
+        setRepoContext(summary);
+      }
+    } catch (e) {
+      console.warn("Failed to fetch GitHub context:", e);
+    }
+  };
 
   useEffect(() => { fetchProfile(); }, [fetchProfile]);
 
@@ -87,6 +120,7 @@ export function ChatPage() {
         onClearContext={handleClearContext}
         isSubmitting={saving}
         fullPage
+        repoContext={repoContext}
       />
     </div>
   );

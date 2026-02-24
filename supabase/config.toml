@@ -5,3 +5,9 @@ verify_jwt = false
 
 [functions.fetch-external-events]
 verify_jwt = false
+
+[functions.fetch-github-context]
+verify_jwt = false
+
+[functions.business-context-chat]
+verify_jwt = false

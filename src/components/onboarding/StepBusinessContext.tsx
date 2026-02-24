@@ -31,6 +31,7 @@ interface StepBusinessContextProps {
   isSubmitting: boolean;
   inline?: boolean;
   fullPage?: boolean;
+  repoContext?: string | null;
 }
 
 function formatBytes(bytes: number): string {
@@ -41,7 +42,7 @@ function formatBytes(bytes: number): string {
 
 const CHAT_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/business-context-chat`;
 
-export function StepBusinessContext({ data, onUpdate, onFinish, onClearContext, isSubmitting, inline, fullPage }: StepBusinessContextProps) {
+export function StepBusinessContext({ data, onUpdate, onFinish, onClearContext, isSubmitting, inline, fullPage, repoContext }: StepBusinessContextProps) {
   const [messages, setMessages] = useState<Msg[]>([
     { role: "assistant", content: "Hey! I'd love to learn about your product so we can tailor ECP for you. What does your product do?", timestamp: new Date() },
   ]);
@@ -74,7 +75,7 @@ export function StepBusinessContext({ data, onUpdate, onFinish, onClearContext, 
           "Content-Type": "application/json",
           Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
         },
-        body: JSON.stringify({ messages: newMessages }),
+        body: JSON.stringify({ messages: newMessages, repo_context: repoContext || undefined }),
       });
 
       if (!resp.ok) {

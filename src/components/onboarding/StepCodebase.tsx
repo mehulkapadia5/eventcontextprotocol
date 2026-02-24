@@ -5,8 +5,8 @@ import { Input } from "@/components/ui/input";
 import { Code2, Check } from "lucide-react";
 
 interface StepCodebaseProps {
-  data: { github_url?: string };
-  onUpdate: (data: { github_url?: string }) => void;
+  data: { github_url?: string; github_pat?: string };
+  onUpdate: (data: { github_url?: string; github_pat?: string }) => void;
   onNext: () => void;
   onSkip: () => void;
 }
@@ -47,23 +47,32 @@ export function StepCodebase({ data, onUpdate, onNext, onSkip }: StepCodebasePro
             </div>
           </CardHeader>
           {(showInput || isConnected) && (
-            <CardContent className="pt-0">
+            <CardContent className="pt-0 space-y-3">
               <div className="flex gap-2">
                 <Input
                   placeholder="https://github.com/org/repo"
                   value={data.github_url || ""}
-                  onChange={(e) => onUpdate({ github_url: e.target.value })}
+                  onChange={(e) => onUpdate({ ...data, github_url: e.target.value })}
                 />
-                {!isConnected && (
-                  <Button
-                    size="sm"
-                    disabled={!data.github_url}
-                    onClick={() => setShowInput(false)}
-                  >
-                    Save
-                  </Button>
-                )}
               </div>
+              <div className="space-y-1">
+                <Input
+                  type="password"
+                  placeholder="ghp_... (Personal Access Token)"
+                  value={data.github_pat || ""}
+                  onChange={(e) => onUpdate({ ...data, github_pat: e.target.value })}
+                />
+                <p className="text-xs text-muted-foreground">Optional for public repos, required for private repos.</p>
+              </div>
+              {!isConnected && (
+                <Button
+                  size="sm"
+                  disabled={!data.github_url}
+                  onClick={() => setShowInput(false)}
+                >
+                  Save
+                </Button>
+              )}
             </CardContent>
           )}
         </Card>

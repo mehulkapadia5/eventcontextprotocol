@@ -26,7 +26,7 @@ interface OnboardingData {
     mixpanel_secret?: string;
     mixpanel_project_id?: string;
   };
-  codebase?: { github_url?: string };
+  codebase?: { github_url?: string; github_pat?: string };
   business?: { product_description?: string; audience?: string; goals?: string; [key: string]: string | undefined };
   project_created?: boolean;
 }
@@ -48,6 +48,7 @@ export function OnboardingCards() {
   const [mixpanelSecret, setMixpanelSecret] = useState("");
   const [mixpanelProjectId, setMixpanelProjectId] = useState("");
   const [githubUrl, setGithubUrl] = useState("");
+  const [githubPat, setGithubPat] = useState("");
   const [newProjectName, setNewProjectName] = useState("");
   const [creatingProject, setCreatingProject] = useState(false);
 
@@ -81,6 +82,7 @@ export function OnboardingCards() {
       setMixpanelSecret(od.analytics?.mixpanel_secret || "");
       setMixpanelProjectId(od.analytics?.mixpanel_project_id || "");
       setGithubUrl(od.codebase?.github_url || "");
+      setGithubPat(od.codebase?.github_pat || "");
     }
     setLoading(false);
   }, [session?.user?.id]);
@@ -391,6 +393,7 @@ export function OnboardingCards() {
                       onClick={() => {
                         const updated = { ...data, codebase: {} };
                         setGithubUrl("");
+                        setGithubPat("");
                         saveData(updated);
                         toast.success("Repository disconnected.");
                       }}
@@ -400,13 +403,21 @@ export function OnboardingCards() {
                   </div>
                 )}
                 <div className="space-y-2">
-                  <Label>GitHub Repository URL</Label>
+                  <Label>GitHub Repository URL <span className="text-destructive">*</span></Label>
                   <Input placeholder="https://github.com/org/repo" value={githubUrl} onChange={(e) => setGithubUrl(e.target.value)} />
+                </div>
+                <div className="space-y-2">
+                  <Label className="flex items-center justify-between">
+                    Personal Access Token
+                    <a href="https://github.com/settings/tokens/new?scopes=repo&description=ECP+Access" target="_blank" rel="noopener noreferrer" className="text-xs text-primary hover:underline font-normal">Create token →</a>
+                  </Label>
+                  <Input type="password" placeholder="ghp_..." value={githubPat} onChange={(e) => setGithubPat(e.target.value)} />
+                  <p className="text-xs text-muted-foreground">Optional for public repos, required for private repos. Enables code-aware AI insights.</p>
                 </div>
                 <Button
                   className="w-full"
                   disabled={!githubUrl || saving}
-                  onClick={() => saveData({ ...data, codebase: { github_url: githubUrl } }, "github")}
+                  onClick={() => saveData({ ...data, codebase: { github_url: githubUrl, github_pat: githubPat || undefined } }, "github")}
                 >
                   {saving ? <><Loader2 className="h-4 w-4 animate-spin mr-2" /> Verifying...</> : codebaseConnected ? "Update Repository" : "Connect Repository"}
                 </Button>
