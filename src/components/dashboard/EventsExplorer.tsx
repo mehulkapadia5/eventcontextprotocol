@@ -9,7 +9,8 @@ import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sh
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
-import { Download, Search, ChevronRight, Hash, User, Clock, Globe, Tag, List, BarChart3, ArrowUpDown } from "lucide-react";
+import { Download, Search, ChevronRight, Hash, User, Clock, Globe, Tag, List, BarChart3, ArrowUpDown, FolderKanban } from "lucide-react";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 type EventRow = {
   id: string;
@@ -284,34 +285,23 @@ export function EventsExplorer() {
         </Button>
       </div>
 
-      {/* Project toggle */}
-      {projects && projects.length > 1 && (
-        <div className="flex rounded-lg border border-border p-1 bg-muted/30 w-fit">
-          <button
-            onClick={() => setSelectedProjectId("all")}
-            className={`px-3 py-1.5 text-xs font-medium rounded-md transition-colors ${
-              selectedProjectId === "all"
-                ? "bg-background text-foreground shadow-sm"
-                : "text-muted-foreground hover:text-foreground"
-            }`}
-          >
-            All Projects
-          </button>
-          {projects.map((p) => (
-            <button
-              key={p.id}
-              onClick={() => setSelectedProjectId(p.id)}
-              className={`px-3 py-1.5 text-xs font-medium rounded-md transition-colors truncate max-w-[120px] ${
-                selectedProjectId === p.id
-                  ? "bg-background text-foreground shadow-sm"
-                  : "text-muted-foreground hover:text-foreground"
-              }`}
-            >
-              {p.name}
-            </button>
-          ))}
+      {/* Project selector */}
+      <div className="flex items-center gap-3">
+        <div className="flex items-center gap-2">
+          <FolderKanban className="h-4 w-4 text-muted-foreground" />
+          <Select value={selectedProjectId} onValueChange={setSelectedProjectId}>
+            <SelectTrigger className="w-48 h-9 text-xs">
+              <SelectValue placeholder="Select project" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Projects</SelectItem>
+              {projects?.map((p) => (
+                <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
         </div>
-      )}
+      </div>
 
       <div className="flex items-center gap-3">
         <div className="relative flex-1 max-w-md">
