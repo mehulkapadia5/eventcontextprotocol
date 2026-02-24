@@ -3,14 +3,15 @@ import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Card, CardContent } from "@/components/ui/card";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
-import { Download, Search, ChevronRight, Hash, User, Clock, Globe, Tag, List, BarChart3, ArrowUpDown, FolderKanban } from "lucide-react";
+import { Download, Search, ChevronRight, Hash, User, Clock, Tag, List, BarChart3, ArrowUpDown, FolderKanban, BookOpen, Activity } from "lucide-react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { EventDictionary } from "./EventDictionary";
 
 type EventRow = {
   id: string;
@@ -43,51 +44,6 @@ function PropertyValue({ value }: { value: any }) {
   if (Array.isArray(value)) return <Badge variant="outline" className="font-mono text-xs">[{value.length} items]</Badge>;
   if (typeof value === "object") return <Badge variant="outline" className="font-mono text-xs">{`{${Object.keys(value).length} keys}`}</Badge>;
   return <span>{String(value)}</span>;
-}
-
-function PropertiesView({ properties }: { properties: Record<string, any> | null }) {
-  if (!properties || Object.keys(properties).length === 0) {
-    return <p className="text-sm text-muted-foreground italic py-4">No properties</p>;
-  }
-
-  const entries = Object.entries(properties).filter(([key]) => !key.startsWith("$set"));
-
-  // Separate $ prefixed (system) and user properties
-  const systemProps = entries.filter(([k]) => k.startsWith("$"));
-  const userProps = entries.filter(([k]) => !k.startsWith("$"));
-
-  const renderGroup = (items: [string, any][], label: string, icon: React.ReactNode) => {
-    if (items.length === 0) return null;
-    return (
-      <div className="space-y-1">
-        <div className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground uppercase tracking-wider py-2">
-          {icon}
-          {label}
-          <Badge variant="secondary" className="ml-auto text-[10px] h-4 px-1">{items.length}</Badge>
-        </div>
-        <div className="grid gap-0.5">
-          {items.map(([key, val]) => (
-            <div key={key} className="flex items-start gap-3 py-1.5 px-2 rounded-md hover:bg-muted/50 group">
-              <span className="text-xs font-mono text-muted-foreground shrink-0 min-w-[140px] pt-0.5 truncate" title={key}>
-                {key.replace(/^\$/, "")}
-              </span>
-              <div className="flex-1 min-w-0">
-                <PropertyValue value={val} />
-              </div>
-            </div>
-          ))}
-        </div>
-      </div>
-    );
-  };
-
-  return (
-    <div className="space-y-3">
-      {renderGroup(userProps, "Custom Properties", <Tag className="h-3 w-3" />)}
-      {userProps.length > 0 && systemProps.length > 0 && <Separator />}
-      {renderGroup(systemProps, "System Properties", <Hash className="h-3 w-3" />)}
-    </div>
-  );
 }
 
 function EventSchemaView({ uniqueEvent }: { uniqueEvent: UniqueEvent }) {
@@ -272,21 +228,15 @@ export function EventsExplorer() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold">Events Explorer</h1>
           <p className="text-sm text-muted-foreground mt-1">
-            {filtered.length} unique events · {totalEvents.toLocaleString()} total occurrences
+            Manage your event dictionary and explore live data.
           </p>
         </div>
-        <Button variant="outline" size="sm" onClick={exportCSV} disabled={totalEvents === 0}>
-          <Download className="h-4 w-4 mr-2" />
-          Export CSV
-        </Button>
-      </div>
-
-      {/* Project selector */}
-      <div className="flex items-center gap-3">
+        
+        {/* Project selector - Global for both tabs */}
         <div className="flex items-center gap-2">
           <FolderKanban className="h-4 w-4 text-muted-foreground" />
           <Select value={selectedProjectId} onValueChange={setSelectedProjectId}>
@@ -303,66 +253,95 @@ export function EventsExplorer() {
         </div>
       </div>
 
-      <div className="flex items-center gap-3">
-        <div className="relative flex-1 max-w-md">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-          <Input placeholder="Search events..." value={search} onChange={(e) => setSearch(e.target.value)} className="pl-10" />
-        </div>
-        <Button
-          variant="ghost"
-          size="sm"
-          className="text-xs gap-1"
-          onClick={() => setSortBy(sortBy === "count" ? "name" : sortBy === "name" ? "lastSeen" : "count")}
-        >
-          <ArrowUpDown className="h-3 w-3" />
-          {sortBy === "count" ? "By Volume" : sortBy === "name" ? "A-Z" : "Recent"}
-        </Button>
-      </div>
+      <Tabs defaultValue="live">
+        <TabsList>
+          <TabsTrigger value="live" className="gap-2">
+            <Activity className="h-4 w-4" />
+            Live Events
+          </TabsTrigger>
+          <TabsTrigger value="dictionary" className="gap-2">
+            <BookOpen className="h-4 w-4" />
+            Event Dictionary
+          </TabsTrigger>
+        </TabsList>
 
-      <div className="grid gap-2">
-        {filtered.map((ev) => (
-          <Card
-            key={ev.name}
-            className="cursor-pointer transition-all hover:border-primary/30"
-            onClick={() => { setSelectedEvent(ev); setView("schema"); }}
-          >
-            <CardContent className="p-4">
-              <div className="flex items-center gap-4">
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-2">
-                    <span className="font-mono font-medium text-sm truncate">{ev.name}</span>
-                    <Badge variant="secondary" className="text-[10px] h-5 px-1.5 shrink-0">
-                      {ev.properties.size} props
-                    </Badge>
+        <TabsContent value="live" className="space-y-6 mt-6">
+          <div className="flex items-center justify-between">
+            <div className="text-sm text-muted-foreground">
+              {filtered.length} unique events · {totalEvents.toLocaleString()} total occurrences
+            </div>
+            <Button variant="outline" size="sm" onClick={exportCSV} disabled={totalEvents === 0}>
+              <Download className="h-4 w-4 mr-2" />
+              Export CSV
+            </Button>
+          </div>
+
+          <div className="flex items-center gap-3">
+            <div className="relative flex-1 max-w-md">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+              <Input placeholder="Search events..." value={search} onChange={(e) => setSearch(e.target.value)} className="pl-10" />
+            </div>
+            <Button
+              variant="ghost"
+              size="sm"
+              className="text-xs gap-1"
+              onClick={() => setSortBy(sortBy === "count" ? "name" : sortBy === "name" ? "lastSeen" : "count")}
+            >
+              <ArrowUpDown className="h-3 w-3" />
+              {sortBy === "count" ? "By Volume" : sortBy === "name" ? "A-Z" : "Recent"}
+            </Button>
+          </div>
+
+          <div className="grid gap-2">
+            {filtered.map((ev) => (
+              <Card
+                key={ev.name}
+                className="cursor-pointer transition-all hover:border-primary/30"
+                onClick={() => { setSelectedEvent(ev); setView("schema"); }}
+              >
+                <CardContent className="p-4">
+                  <div className="flex items-center gap-4">
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2">
+                        <span className="font-mono font-medium text-sm truncate">{ev.name}</span>
+                        <Badge variant="secondary" className="text-[10px] h-5 px-1.5 shrink-0">
+                          {ev.properties.size} props
+                        </Badge>
+                      </div>
+                      <div className="flex items-center gap-4 mt-1.5 text-xs text-muted-foreground">
+                        <span className="flex items-center gap-1">
+                          <BarChart3 className="h-3 w-3" />
+                          {ev.count.toLocaleString()} events
+                        </span>
+                        <span className="flex items-center gap-1">
+                          <User className="h-3 w-3" />
+                          {ev.uniqueUsers} users
+                        </span>
+                        <span className="flex items-center gap-1">
+                          <Clock className="h-3 w-3" />
+                          {timeAgo(ev.lastSeen)}
+                        </span>
+                      </div>
+                    </div>
+                    <ChevronRight className="h-4 w-4 text-muted-foreground shrink-0" />
                   </div>
-                  <div className="flex items-center gap-4 mt-1.5 text-xs text-muted-foreground">
-                    <span className="flex items-center gap-1">
-                      <BarChart3 className="h-3 w-3" />
-                      {ev.count.toLocaleString()} events
-                    </span>
-                    <span className="flex items-center gap-1">
-                      <User className="h-3 w-3" />
-                      {ev.uniqueUsers} users
-                    </span>
-                    <span className="flex items-center gap-1">
-                      <Clock className="h-3 w-3" />
-                      {timeAgo(ev.lastSeen)}
-                    </span>
-                  </div>
-                </div>
-                <ChevronRight className="h-4 w-4 text-muted-foreground shrink-0" />
-              </div>
-            </CardContent>
-          </Card>
-        ))}
-        {filtered.length === 0 && (
-          <Card>
-            <CardContent className="py-12 text-center text-muted-foreground">
-              {totalEvents === 0 ? "No events yet. Sync from PostHog/Mixpanel or send events via the API." : "No matching events found."}
-            </CardContent>
-          </Card>
-        )}
-      </div>
+                </CardContent>
+              </Card>
+            ))}
+            {filtered.length === 0 && (
+              <Card>
+                <CardContent className="py-12 text-center text-muted-foreground">
+                  {totalEvents === 0 ? "No events yet. Sync from PostHog/Mixpanel or send events via the API." : "No matching events found."}
+                </CardContent>
+              </Card>
+            )}
+          </div>
+        </TabsContent>
+
+        <TabsContent value="dictionary" className="mt-6">
+          <EventDictionary projectId={selectedProjectId} />
+        </TabsContent>
+      </Tabs>
 
       {/* Event Detail Sheet */}
       <Sheet open={!!selectedEvent && !selectedInstance} onOpenChange={() => setSelectedEvent(null)}>
@@ -411,9 +390,7 @@ export function EventsExplorer() {
                             {new Date(ev.timestamp).toLocaleString()}
                           </div>
                         </div>
-                        <Badge variant="outline" className="text-[10px]">
-                          {ev.properties ? Object.keys(ev.properties).length : 0} props
-                        </Badge>
+                        <ChevronRight className="h-4 w-4 text-muted-foreground" />
                       </div>
                     </CardContent>
                   </Card>
@@ -424,36 +401,45 @@ export function EventsExplorer() {
         </SheetContent>
       </Sheet>
 
-      {/* Single Event Instance Sheet */}
+      {/* Instance Detail Sheet */}
       <Sheet open={!!selectedInstance} onOpenChange={() => setSelectedInstance(null)}>
-        <SheetContent className="sm:max-w-lg w-full p-0">
-          <div className="p-6 pb-0">
-            <SheetHeader>
-              <SheetTitle className="font-mono text-lg">{selectedInstance?.event_name}</SheetTitle>
-            </SheetHeader>
-            <div className="mt-3 space-y-2 text-sm">
-              <div className="flex items-center gap-2 text-muted-foreground">
-                <Clock className="h-3.5 w-3.5" />
-                <span className="font-mono">{selectedInstance && new Date(selectedInstance.timestamp).toLocaleString()}</span>
+        <SheetContent className="sm:max-w-xl w-full">
+          <SheetHeader>
+            <SheetTitle className="font-mono text-base break-all">{selectedInstance?.event_name}</SheetTitle>
+          </SheetHeader>
+          <div className="mt-6 space-y-6">
+            <div className="grid grid-cols-2 gap-4 text-sm">
+              <div>
+                <label className="text-xs font-medium text-muted-foreground uppercase">User ID</label>
+                <div className="font-mono mt-1">{selectedInstance?.user_identifier || "-"}</div>
               </div>
-              <div className="flex items-center gap-2 text-muted-foreground">
-                <User className="h-3.5 w-3.5" />
-                <span className="font-mono">{selectedInstance?.user_identifier || "anonymous"}</span>
+              <div>
+                <label className="text-xs font-medium text-muted-foreground uppercase">Timestamp</label>
+                <div className="mt-1">{selectedInstance && new Date(selectedInstance.timestamp).toLocaleString()}</div>
               </div>
-              {selectedInstance?.page_url && (
-                <div className="flex items-center gap-2 text-muted-foreground">
-                  <Globe className="h-3.5 w-3.5" />
-                  <a href={selectedInstance.page_url} target="_blank" rel="noopener noreferrer" className="text-primary hover:underline text-xs truncate">
-                    {selectedInstance.page_url}
-                  </a>
-                </div>
-              )}
             </div>
+
+            <div>
+              <label className="text-xs font-medium text-muted-foreground uppercase mb-2 block">Properties</label>
+              <div className="bg-muted/50 rounded-md p-4 space-y-2 font-mono text-sm overflow-x-auto">
+                {selectedInstance?.properties && Object.entries(selectedInstance.properties).map(([key, value]) => (
+                  <div key={key} className="flex gap-2">
+                    <span className="text-blue-500">{key}:</span>
+                    <span className="text-foreground break-all">{JSON.stringify(value)}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+            
+            {selectedInstance?.page_url && (
+               <div>
+                <label className="text-xs font-medium text-muted-foreground uppercase mb-2 block">Page URL</label>
+                <a href={selectedInstance.page_url} target="_blank" rel="noopener noreferrer" className="text-sm text-primary hover:underline break-all">
+                  {selectedInstance.page_url}
+                </a>
+              </div>
+            )}
           </div>
-          <Separator className="mt-4" />
-          <ScrollArea className="h-[calc(100vh-220px)] px-6 py-4">
-            <PropertiesView properties={selectedInstance?.properties ?? null} />
-          </ScrollArea>
         </SheetContent>
       </Sheet>
     </div>
