@@ -2,11 +2,25 @@ import { useState, useRef, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Progress } from "@/components/ui/progress";
-import { Briefcase, Send, Loader2, Brain } from "lucide-react";
+import { Briefcase, Send, Brain } from "lucide-react";
 import ReactMarkdown from "react-markdown";
 import { toast } from "sonner";
 
-type Msg = { role: "user" | "assistant"; content: string };
+function TypingDots() {
+  return (
+    <div className="flex items-center gap-1 px-1 py-1">
+      <span className="w-1.5 h-1.5 rounded-full bg-muted-foreground animate-bounce [animation-delay:0ms]" />
+      <span className="w-1.5 h-1.5 rounded-full bg-muted-foreground animate-bounce [animation-delay:150ms]" />
+      <span className="w-1.5 h-1.5 rounded-full bg-muted-foreground animate-bounce [animation-delay:300ms]" />
+    </div>
+  );
+}
+
+function formatTime(date: Date) {
+  return date.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+}
+
+type Msg = { role: "user" | "assistant"; content: string; timestamp: Date };
 
 interface StepBusinessContextProps {
   data: { product_description?: string; audience?: string; goals?: string };
@@ -21,7 +35,7 @@ const CHAT_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/business-con
 
 export function StepBusinessContext({ data, onUpdate, onFinish, isSubmitting, inline, fullPage }: StepBusinessContextProps) {
   const [messages, setMessages] = useState<Msg[]>([
-    { role: "assistant", content: "Hey! I'd love to learn about your product so we can tailor ECP for you. What does your product do?" },
+    { role: "assistant", content: "Hey! I'd love to learn about your product so we can tailor ECP for you. What does your product do?", timestamp: new Date() },
   ]);
   const [input, setInput] = useState("");
   const [isLoading, setIsLoading] = useState(false);
@@ -36,7 +50,7 @@ export function StepBusinessContext({ data, onUpdate, onFinish, isSubmitting, in
     const text = input.trim();
     if (!text || isLoading) return;
 
-    const userMsg: Msg = { role: "user", content: text };
+    const userMsg: Msg = { role: "user", content: text, timestamp: new Date() };
     const newMessages = [...messages, userMsg];
     setMessages(newMessages);
     setInput("");
@@ -72,7 +86,7 @@ export function StepBusinessContext({ data, onUpdate, onFinish, isSubmitting, in
           if (last?.role === "assistant" && prev.length > newMessages.length) {
             return prev.map((m, i) => (i === prev.length - 1 ? { ...m, content: assistantSoFar } : m));
           }
-          return [...prev, { role: "assistant", content: assistantSoFar }];
+          return [...prev, { role: "assistant" as const, content: assistantSoFar, timestamp: new Date() }];
         });
       };
 
@@ -151,7 +165,7 @@ export function StepBusinessContext({ data, onUpdate, onFinish, isSubmitting, in
         <div className="flex-1 overflow-y-auto">
           <div className="max-w-2xl mx-auto px-4 py-6 space-y-6">
             {messages.map((msg, i) => (
-              <div key={i} className={`flex ${msg.role === "user" ? "justify-end" : "justify-start"}`}>
+              <div key={i} className={`flex flex-col ${msg.role === "user" ? "items-end" : "items-start"}`}>
                 <div
                   className={`max-w-[85%] rounded-2xl px-4 py-3 text-sm ${
                     msg.role === "user"
@@ -167,12 +181,13 @@ export function StepBusinessContext({ data, onUpdate, onFinish, isSubmitting, in
                     msg.content
                   )}
                 </div>
+                <span className="text-[10px] text-muted-foreground mt-1 px-1">{formatTime(msg.timestamp)}</span>
               </div>
             ))}
             {isLoading && messages[messages.length - 1]?.role === "user" && (
               <div className="flex justify-start">
                 <div className="bg-muted rounded-2xl px-4 py-3">
-                  <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
+                  <TypingDots />
                 </div>
               </div>
             )}
@@ -230,7 +245,7 @@ export function StepBusinessContext({ data, onUpdate, onFinish, isSubmitting, in
         <div className="h-80 overflow-y-auto p-4">
           <div className="space-y-4">
             {messages.map((msg, i) => (
-              <div key={i} className={`flex ${msg.role === "user" ? "justify-end" : "justify-start"}`}>
+              <div key={i} className={`flex flex-col ${msg.role === "user" ? "items-end" : "items-start"}`}>
                 <div
                   className={`max-w-[80%] rounded-lg px-3 py-2 text-sm ${
                     msg.role === "user"
@@ -246,12 +261,13 @@ export function StepBusinessContext({ data, onUpdate, onFinish, isSubmitting, in
                     msg.content
                   )}
                 </div>
+                <span className="text-[10px] text-muted-foreground mt-1 px-1">{formatTime(msg.timestamp)}</span>
               </div>
             ))}
             {isLoading && messages[messages.length - 1]?.role === "user" && (
               <div className="flex justify-start">
                 <div className="bg-muted rounded-lg px-3 py-2">
-                  <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
+                  <TypingDots />
                 </div>
               </div>
             )}
