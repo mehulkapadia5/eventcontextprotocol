@@ -45,19 +45,114 @@ const CHAT_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/business-con
 const ANALYTICS_CHAT_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/analytics-chat`;
 
 export function StepBusinessContext({ data, onUpdate, onFinish, onClearContext, isSubmitting, inline, fullPage, repoContext }: StepBusinessContextProps) {
+  const initialMessage = repoContext
+    ? "Analyzing your codebase... one moment."
+    : "Hey! I'd love to learn about your product so we can tailor ECP for you. What does your product do?";
+
   const [messages, setMessages] = useState<Msg[]>([
-    { role: "assistant", content: "Hey! I'd love to learn about your product so we can tailor ECP for you. What does your product do?", timestamp: new Date() },
+    { role: "assistant", content: initialMessage, timestamp: new Date() },
   ]);
   const [input, setInput] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [contextReady, setContextReady] = useState(false);
   const [analyticsMode, setAnalyticsMode] = useState(false);
   const [aiConfidence, setAiConfidence] = useState(0);
+  const [hasAutoSent, setHasAutoSent] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
+
+  // Auto-trigger the AI to analyze codebase on mount when repo context is available
+  useEffect(() => {
+    if (repoContext && !hasAutoSent && !contextReady) {
+      setHasAutoSent(true);
+      // Send a silent "analyze my codebase" message to trigger the AI's interpretation
+      const autoMsg: Msg = { role: "user", content: "Hey, I just connected my repo. Tell me what you see.", timestamp: new Date() };
+      const allMessages = [messages[0], autoMsg];
+      setMessages(allMessages);
+      setIsLoading(true);
+
+      (async () => {
+        let assistantSoFar = "";
+        try {
+          const { data: sessionData } = await (await import("@/integrations/supabase/client")).supabase.auth.getSession();
+          const token = sessionData?.session?.access_token || import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
+
+          const resp = await fetch(CHAT_URL, {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              Authorization: `Bearer ${token}`,
+              apikey: import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
+            },
+            body: JSON.stringify({ messages: allMessages, repo_context: repoContext }),
+          });
+
+          if (!resp.ok) {
+            setIsLoading(false);
+            return;
+          }
+
+          const reader = resp.body!.getReader();
+          const decoder = new TextDecoder();
+          let textBuffer = "";
+
+          const upsert = (chunk: string) => {
+            assistantSoFar += chunk;
+            setMessages((prev) => {
+              const last = prev[prev.length - 1];
+              if (last?.role === "assistant" && prev.length > allMessages.length) {
+                return prev.map((m, i) => (i === prev.length - 1 ? { ...m, content: assistantSoFar } : m));
+              }
+              return [...prev, { role: "assistant" as const, content: assistantSoFar, timestamp: new Date() }];
+            });
+          };
+
+          let streamDone = false;
+          while (!streamDone) {
+            const { done, value } = await reader.read();
+            if (done) break;
+            textBuffer += decoder.decode(value, { stream: true });
+            let newlineIndex: number;
+            while ((newlineIndex = textBuffer.indexOf("\n")) !== -1) {
+              let line = textBuffer.slice(0, newlineIndex);
+              textBuffer = textBuffer.slice(newlineIndex + 1);
+              if (line.endsWith("\r")) line = line.slice(0, -1);
+              if (line.startsWith(":") || line.trim() === "") continue;
+              if (!line.startsWith("data: ")) continue;
+              const jsonStr = line.slice(6).trim();
+              if (jsonStr === "[DONE]") { streamDone = true; break; }
+              try {
+                const parsed = JSON.parse(jsonStr);
+                const content = parsed.choices?.[0]?.delta?.content as string | undefined;
+                if (content) upsert(content);
+              } catch { textBuffer = line + "\n" + textBuffer; break; }
+            }
+          }
+
+          // Parse confidence
+          const confidenceMatch = assistantSoFar.match(/CONFIDENCE:(\d+)\s*$/);
+          if (confidenceMatch) {
+            const conf = Math.min(100, Math.max(0, parseInt(confidenceMatch[1], 10)));
+            setAiConfidence(conf);
+            assistantSoFar = assistantSoFar.replace(/\nCONFIDENCE:\d+\s*$/, '').replace(/CONFIDENCE:\d+\s*$/, '');
+            setMessages((prev) =>
+              prev.map((m, i) => (i === prev.length - 1 ? { ...m, content: assistantSoFar } : m))
+            );
+          }
+
+          // Hide the auto user message from the UI
+          setMessages((prev) => prev.filter((m) => m.content !== "Hey, I just connected my repo. Tell me what you see."));
+        } catch (e) {
+          console.error(e);
+        } finally {
+          setIsLoading(false);
+        }
+      })();
+    }
+  }, [repoContext]);
 
   const send = async () => {
     const text = input.trim();
