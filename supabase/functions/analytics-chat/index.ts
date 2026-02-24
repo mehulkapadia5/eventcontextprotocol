@@ -7,135 +7,113 @@ const corsHeaders = {
     "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
-const SYSTEM_PROMPT = `You are ECP's analytics assistant. You have deep knowledge of the user's business AND access to their real event data.
+const SCHEMA_CONTEXT = `
+## DATABASE SCHEMA (use this to write SQL queries)
+
+TABLE: events
+- id (uuid, PK)
+- project_id (uuid, FK -> projects.id)
+- event_name (text)
+- user_identifier (text, nullable)
+- page_url (text, nullable)
+- properties (jsonb, default '{}')
+- timestamp (timestamptz)
+- created_at (timestamptz)
+
+TABLE: projects
+- id (uuid, PK)
+- user_id (uuid)
+- name (text)
+- api_key (text)
+- created_at (timestamptz)
+- updated_at (timestamptz)
+
+NOTES:
+- Always filter events by project_id IN (user's project IDs) — RLS handles this automatically
+- Use timestamp for time-based queries, not created_at
+- properties is JSONB — use properties->>'key' or properties->'key' for access
+- user_identifier is how end-users are tracked (can be email, ID, etc.)
+- Common event_names depend on the user's product
+`;
+
+const SYSTEM_PROMPT = `You are ECP's analytics assistant. You have deep knowledge of the user's business AND can execute real SQL queries against their event database.
 
 Your capabilities:
-- Answer questions about the user's actual metrics (DAU, MAU, event counts, top events, etc.)
-- Help users understand what events to track and why
-- Suggest event naming conventions and taxonomy
-- Explain analytics concepts (funnels, cohorts, retention, etc.)
-- Help interpret what metrics mean for their specific business
-- Suggest KPIs and dashboards relevant to their product
-- Help with PostHog and Mixpanel query strategies
-- Advise on event properties and user identification
+- Execute SQL queries against the user's actual event data
+- Answer questions about real metrics (DAU, MAU, funnels, retention, etc.)
+- Help users understand their analytics
+- Suggest event naming conventions and tracking strategies
 
-Guidelines:
-- When the user asks for numbers/metrics, USE THE EVENT DATA PROVIDED to give real answers
-- Be concise but thorough (2-5 sentences per response usually)
-- Use the business context provided to give tailored, specific advice
-- Reference their actual product, audience, and goals when relevant
-- If they ask about something outside analytics, gently redirect
-- Use markdown formatting for lists, code blocks, and emphasis
-- Be practical — give actionable advice, not just theory
-- If event data is empty or missing, say so honestly and suggest they start tracking
+## HOW TO ANSWER DATA QUESTIONS
+
+When the user asks about their data/metrics, you MUST use the query_events tool to run a SQL query.
+- Write efficient PostgreSQL queries
+- Always use the schema provided
+- For time ranges, use timestamp column with intervals like: timestamp >= now() - interval '7 days'
+- For DAU: COUNT(DISTINCT user_identifier) grouped by date
+- For funnels: use conditional aggregation or CTEs
+- Limit results to reasonable amounts (LIMIT 100 max)
+- ONLY write SELECT or WITH...SELECT queries
 
 ## RICH WIDGETS
-When presenting data, use these special code blocks to render visual widgets in the chat:
+When presenting data, use these special code blocks to render visual widgets:
 
 ### Funnel Widget
-Use when showing conversion funnels or step-by-step flows:
 \`\`\`funnel
-{"title":"Free to Paid Funnel","steps":[{"label":"Sessions","value":42},{"label":"Module View","value":18},{"label":"Paywall Hit","value":5},{"label":"Conversion","value":1}]}
+{"title":"Funnel Name","steps":[{"label":"Step 1","value":100},{"label":"Step 2","value":50}]}
 \`\`\`
 
 ### Metrics Widget
-Use when showing key metrics (DAU, MAU, totals, etc.):
 \`\`\`metrics
-{"metrics":[{"label":"DAU Today","value":12,"change":25},{"label":"MAU","value":89},{"label":"Total Events","value":1250,"change":-3},{"label":"Unique Users","value":45}]}
+{"metrics":[{"label":"DAU Today","value":12,"change":25},{"label":"MAU","value":89}]}
 \`\`\`
 
 ### Top Events Widget
-Use when showing ranked event lists:
 \`\`\`top-events
-{"title":"Top Events (7d)","events":[{"name":"page_view","count":340,"users":28},{"name":"card_reviewed","count":120,"users":15},{"name":"search_performed","count":85,"users":22}]}
+{"title":"Top Events","events":[{"name":"page_view","count":340,"users":28}]}
 \`\`\`
 
-ALWAYS use these widgets when presenting quantitative data. You can mix widgets with regular markdown text. Use real numbers from the event data provided.`;
+ALWAYS use these widgets when presenting quantitative data. Use real numbers from query results.
 
-async function fetchEventStats(supabase: any, userId: string) {
-  // Get user's projects
-  const { data: projects } = await supabase
-    .from("projects")
-    .select("id, name")
-    .eq("user_id", userId);
+Guidelines:
+- Be concise but thorough
+- Use business context to give tailored advice
+- Use markdown formatting
+- Be practical and actionable
+- If a query returns no data, say so honestly`;
 
-  if (!projects || projects.length === 0) return null;
+// Tool definition for SQL execution
+const QUERY_TOOL = {
+  type: "function",
+  function: {
+    name: "query_events",
+    description: "Execute a read-only SQL query against the user's event database. Only SELECT statements allowed.",
+    parameters: {
+      type: "object",
+      properties: {
+        sql: {
+          type: "string",
+          description: "A PostgreSQL SELECT query to run against the events/projects tables",
+        },
+        explanation: {
+          type: "string",
+          description: "Brief explanation of what this query does (shown to user)",
+        },
+      },
+      required: ["sql", "explanation"],
+      additionalProperties: false,
+    },
+  },
+};
 
-  const projectIds = projects.map((p: any) => p.id);
-
-  // Get total events count
-  const { count: totalEvents } = await supabase
-    .from("events")
-    .select("*", { count: "exact", head: true })
-    .in("project_id", projectIds);
-
-  // Get recent events for analysis (last 1000)
-  const { data: recentEvents } = await supabase
-    .from("events")
-    .select("event_name, user_identifier, timestamp, page_url, properties")
-    .in("project_id", projectIds)
-    .order("timestamp", { ascending: false })
-    .limit(1000);
-
-  if (!recentEvents || recentEvents.length === 0) {
-    return { projects, totalEvents: totalEvents || 0, summary: "No events recorded yet." };
+async function executeQuery(supabase: any, sql: string): Promise<{ data: any; error: string | null }> {
+  try {
+    const { data, error } = await supabase.rpc("execute_readonly_query", { query_text: sql });
+    if (error) return { data: null, error: error.message };
+    return { data: data || [], error: null };
+  } catch (e) {
+    return { data: null, error: e instanceof Error ? e.message : "Query execution failed" };
   }
-
-  // Compute stats
-  const now = new Date();
-  const today = now.toISOString().split("T")[0];
-  const yesterday = new Date(now.getTime() - 86400000).toISOString().split("T")[0];
-
-  const uniqueUsersToday = new Set(
-    recentEvents.filter((e: any) => e.timestamp.startsWith(today)).map((e: any) => e.user_identifier).filter(Boolean)
-  ).size;
-
-  const uniqueUsersYesterday = new Set(
-    recentEvents.filter((e: any) => e.timestamp.startsWith(yesterday)).map((e: any) => e.user_identifier).filter(Boolean)
-  ).size;
-
-  // DAU for last 7 days
-  const dau: Record<string, number> = {};
-  for (let i = 0; i < 7; i++) {
-    const d = new Date(now.getTime() - i * 86400000).toISOString().split("T")[0];
-    dau[d] = new Set(
-      recentEvents.filter((e: any) => e.timestamp.startsWith(d)).map((e: any) => e.user_identifier).filter(Boolean)
-    ).size;
-  }
-
-  // MAU (last 30 days)
-  const thirtyDaysAgo = new Date(now.getTime() - 30 * 86400000);
-  const mau = new Set(
-    recentEvents.filter((e: any) => new Date(e.timestamp) >= thirtyDaysAgo).map((e: any) => e.user_identifier).filter(Boolean)
-  ).size;
-
-  // Top events
-  const eventCounts: Record<string, number> = {};
-  recentEvents.forEach((e: any) => {
-    eventCounts[e.event_name] = (eventCounts[e.event_name] || 0) + 1;
-  });
-  const topEvents = Object.entries(eventCounts)
-    .sort((a, b) => b[1] - a[1])
-    .slice(0, 10);
-
-  // Events today
-  const eventsToday = recentEvents.filter((e: any) => e.timestamp.startsWith(today)).length;
-
-  const allUniqueUsers = new Set(recentEvents.map((e: any) => e.user_identifier).filter(Boolean)).size;
-
-  return {
-    projects: projects.map((p: any) => p.name),
-    totalEvents,
-    eventsToday,
-    dauToday: uniqueUsersToday,
-    dauYesterday: uniqueUsersYesterday,
-    dauLast7Days: dau,
-    mau,
-    allUniqueUsers,
-    topEvents,
-    oldestEvent: recentEvents[recentEvents.length - 1]?.timestamp,
-    newestEvent: recentEvents[0]?.timestamp,
-  };
 }
 
 serve(async (req) => {
@@ -146,10 +124,11 @@ serve(async (req) => {
     const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
     if (!LOVABLE_API_KEY) throw new Error("LOVABLE_API_KEY is not configured");
 
-    let systemPrompt = SYSTEM_PROMPT;
+    // Build system prompt
+    let systemPrompt = SYSTEM_PROMPT + "\n" + SCHEMA_CONTEXT;
 
     if (business_context) {
-      systemPrompt += `\n\nHere is the user's business context:\n`;
+      systemPrompt += `\n\n## BUSINESS CONTEXT\n`;
       if (business_context.product_description) systemPrompt += `- Product: ${business_context.product_description}\n`;
       if (business_context.audience) systemPrompt += `- Audience: ${business_context.audience}\n`;
       if (business_context.goals) systemPrompt += `- Goals: ${business_context.goals}\n`;
@@ -158,32 +137,22 @@ serve(async (req) => {
     }
 
     if (repo_context) {
-      systemPrompt += `\n\nThe user's codebase context:\n${repo_context.slice(0, 6000)}`;
+      systemPrompt += `\n\n## CODEBASE CONTEXT\n${repo_context.slice(0, 6000)}`;
     }
 
-    // Fetch real event data if we have auth
+    // Set up authenticated supabase client
+    let supabase: any = null;
     const authHeader = req.headers.get("Authorization");
     if (authHeader) {
-      try {
-        const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
-        const supabaseKey = Deno.env.get("SUPABASE_ANON_KEY")!;
-        const supabase = createClient(supabaseUrl, supabaseKey, {
-          global: { headers: { Authorization: authHeader } },
-        });
-
-        const { data: { user } } = await supabase.auth.getUser();
-        if (user) {
-          const stats = await fetchEventStats(supabase, user.id);
-          if (stats) {
-            systemPrompt += `\n\n## REAL EVENT DATA (from user's database)\n\`\`\`json\n${JSON.stringify(stats, null, 2)}\n\`\`\`\nUse this data to answer metric questions with REAL numbers. Do not say "I don't have access to your data" — you DO have it above.`;
-          }
-        }
-      } catch (e) {
-        console.warn("Failed to fetch event stats:", e);
-      }
+      const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
+      const supabaseKey = Deno.env.get("SUPABASE_ANON_KEY")!;
+      supabase = createClient(supabaseUrl, supabaseKey, {
+        global: { headers: { Authorization: authHeader } },
+      });
     }
 
-    const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+    // PASS 1: Non-streaming call with tool to let AI decide if it needs SQL
+    const pass1Response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
       method: "POST",
       headers: {
         Authorization: `Bearer ${LOVABLE_API_KEY}`,
@@ -195,39 +164,106 @@ serve(async (req) => {
           { role: "system", content: systemPrompt },
           ...messages,
         ],
+        tools: [QUERY_TOOL],
+        stream: false,
+      }),
+    });
+
+    if (!pass1Response.ok) {
+      const status = pass1Response.status;
+      if (status === 429) {
+        return new Response(JSON.stringify({ error: "Rate limit exceeded, please try again shortly." }), {
+          status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+      if (status === 402) {
+        return new Response(JSON.stringify({ error: "AI credits exhausted. Please add funds." }), {
+          status: 402, headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+      const t = await pass1Response.text();
+      console.error("AI pass1 error:", status, t);
+      return new Response(JSON.stringify({ error: "AI service error" }), {
+        status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    const pass1Data = await pass1Response.json();
+    const choice = pass1Data.choices?.[0];
+    const toolCalls = choice?.message?.tool_calls;
+
+    // If AI didn't call a tool, it answered directly — stream that as pass 2
+    let pass2Messages = [
+      { role: "system", content: systemPrompt },
+      ...messages,
+    ];
+
+    if (toolCalls && toolCalls.length > 0 && supabase) {
+      // Execute all tool calls
+      const toolResults: any[] = [];
+      for (const tc of toolCalls) {
+        if (tc.function.name === "query_events") {
+          const args = JSON.parse(tc.function.arguments);
+          console.log("Executing SQL:", args.sql);
+          const result = await executeQuery(supabase, args.sql);
+          toolResults.push({
+            role: "tool",
+            tool_call_id: tc.id,
+            content: JSON.stringify(result.error ? { error: result.error } : { rows: result.data, count: result.data?.length || 0 }),
+          });
+        }
+      }
+
+      // Build pass 2 messages with tool results
+      pass2Messages = [
+        { role: "system", content: systemPrompt },
+        ...messages,
+        choice.message, // assistant message with tool_calls
+        ...toolResults,
+      ];
+    } else if (!toolCalls) {
+      // AI answered directly without tools — just include its answer as context
+      const directAnswer = choice?.message?.content;
+      if (directAnswer) {
+        // Stream the direct answer back
+        pass2Messages = [
+          { role: "system", content: systemPrompt },
+          ...messages,
+          { role: "assistant", content: directAnswer },
+          { role: "user", content: "Please repeat your previous response exactly as-is." },
+        ];
+      }
+    }
+
+    // PASS 2: Stream the final response
+    const pass2Response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${LOVABLE_API_KEY}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        model: "google/gemini-3-flash-preview",
+        messages: pass2Messages,
         stream: true,
       }),
     });
 
-    if (!response.ok) {
-      if (response.status === 429) {
-        return new Response(JSON.stringify({ error: "Rate limit exceeded, please try again shortly." }), {
-          status: 429,
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-        });
-      }
-      if (response.status === 402) {
-        return new Response(JSON.stringify({ error: "AI credits exhausted. Please add funds." }), {
-          status: 402,
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-        });
-      }
-      const t = await response.text();
-      console.error("AI gateway error:", response.status, t);
+    if (!pass2Response.ok) {
+      const t = await pass2Response.text();
+      console.error("AI pass2 error:", pass2Response.status, t);
       return new Response(JSON.stringify({ error: "AI service error" }), {
-        status: 500,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
+        status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
 
-    return new Response(response.body, {
+    return new Response(pass2Response.body, {
       headers: { ...corsHeaders, "Content-Type": "text/event-stream" },
     });
   } catch (e) {
     console.error("analytics-chat error:", e);
     return new Response(JSON.stringify({ error: e instanceof Error ? e.message : "Unknown error" }), {
-      status: 500,
-      headers: { ...corsHeaders, "Content-Type": "application/json" },
+      status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   }
 });
