@@ -1,4 +1,5 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.1";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -61,34 +62,142 @@ CONTEXT_COMPLETE:{"product_description":"...","audience":"...","goals":"...","st
 
 The CONFIDENCE tag must ALWAYS be the very last line of your response.`;
 
+// Provider routing helpers
+interface LlmConfig {
+  provider?: string;
+  model?: string;
+  openai_key?: string;
+  anthropic_key?: string;
+  google_key?: string;
+}
+
+function getAIEndpoint(config?: LlmConfig): { url: string; apiKey: string; model: string; isAnthropic: boolean } {
+  if (config?.provider && config.provider !== "default") {
+    switch (config.provider) {
+      case "openai":
+        if (config.openai_key) return {
+          url: "https://api.openai.com/v1/chat/completions",
+          apiKey: config.openai_key,
+          model: config.model || "gpt-4o-mini",
+          isAnthropic: false,
+        };
+        break;
+      case "anthropic":
+        if (config.anthropic_key) return {
+          url: "https://api.anthropic.com/v1/messages",
+          apiKey: config.anthropic_key,
+          model: config.model || "claude-sonnet-4-20250514",
+          isAnthropic: true,
+        };
+        break;
+      case "google":
+        if (config.google_key) {
+          const model = config.model || "gemini-2.5-flash";
+          return {
+            url: `https://generativelanguage.googleapis.com/v1beta/openai/chat/completions`,
+            apiKey: config.google_key,
+            model,
+            isAnthropic: false,
+          };
+        }
+        break;
+    }
+  }
+  // Fallback to Lovable AI Gateway
+  return {
+    url: "https://ai.gateway.lovable.dev/v1/chat/completions",
+    apiKey: Deno.env.get("LOVABLE_API_KEY") || "",
+    model: "google/gemini-3-flash-preview",
+    isAnthropic: false,
+  };
+}
+
+async function getUserLlmConfig(req: Request): Promise<LlmConfig | undefined> {
+  const authHeader = req.headers.get("Authorization");
+  if (!authHeader) return undefined;
+  try {
+    const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
+    const supabaseKey = Deno.env.get("SUPABASE_ANON_KEY")!;
+    const supabase = createClient(supabaseUrl, supabaseKey, {
+      global: { headers: { Authorization: authHeader } },
+    });
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return undefined;
+    const { data: profile } = await supabase
+      .from("profiles")
+      .select("onboarding_data")
+      .eq("user_id", user.id)
+      .single();
+    return (profile?.onboarding_data as any)?.llm_config as LlmConfig | undefined;
+  } catch {
+    return undefined;
+  }
+}
+
+async function callAI(endpoint: ReturnType<typeof getAIEndpoint>, systemPrompt: string, messages: any[]): Promise<Response> {
+  if (endpoint.isAnthropic) {
+    // Anthropic uses a different API format
+    const anthropicMessages = messages.map((m: any) => ({
+      role: m.role === "system" ? "user" : m.role,
+      content: m.content,
+    }));
+    const resp = await fetch(endpoint.url, {
+      method: "POST",
+      headers: {
+        "x-api-key": endpoint.apiKey,
+        "anthropic-version": "2023-06-01",
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        model: endpoint.model,
+        max_tokens: 4096,
+        system: systemPrompt,
+        messages: anthropicMessages,
+        stream: true,
+      }),
+    });
+    return resp;
+  }
+
+  // OpenAI-compatible (OpenAI, Google, Lovable Gateway)
+  const headers: Record<string, string> = {
+    "Content-Type": "application/json",
+  };
+  if (endpoint.url.includes("googleapis.com")) {
+    headers["Authorization"] = `Bearer ${endpoint.apiKey}`;
+  } else {
+    headers["Authorization"] = `Bearer ${endpoint.apiKey}`;
+  }
+
+  return fetch(endpoint.url, {
+    method: "POST",
+    headers,
+    body: JSON.stringify({
+      model: endpoint.model,
+      messages: [{ role: "system", content: systemPrompt }, ...messages],
+      stream: true,
+    }),
+  });
+}
+
 serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
   try {
     const { messages, repo_context } = await req.json();
-    const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
-    if (!LOVABLE_API_KEY) throw new Error("LOVABLE_API_KEY is not configured");
+    
+    // Get user's LLM config
+    const llmConfig = await getUserLlmConfig(req);
+    const endpoint = getAIEndpoint(llmConfig);
+    
+    if (!endpoint.apiKey) throw new Error("No API key configured");
 
     let systemPrompt = SYSTEM_PROMPT;
     if (repo_context) {
       systemPrompt += `\n\nThe user has connected their GitHub repository. Here is context about their codebase that you should use to ask smarter, more relevant questions:\n\n${repo_context.slice(0, 8000)}`;
     }
 
-    const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${LOVABLE_API_KEY}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        model: "google/gemini-3-flash-preview",
-        messages: [
-          { role: "system", content: systemPrompt },
-          ...messages,
-        ],
-        stream: true,
-      }),
-    });
+    const response = await callAI(endpoint, systemPrompt, messages);
 
     if (!response.ok) {
       if (response.status === 429) {
@@ -104,10 +213,57 @@ serve(async (req) => {
         });
       }
       const t = await response.text();
-      console.error("AI gateway error:", response.status, t);
+      console.error("AI error:", response.status, t);
       return new Response(JSON.stringify({ error: "AI service error" }), {
         status: 500,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    // For Anthropic, we need to transform the SSE format
+    if (endpoint.isAnthropic) {
+      // Transform Anthropic SSE to OpenAI-compatible SSE
+      const reader = response.body!.getReader();
+      const decoder = new TextDecoder();
+      const encoder = new TextEncoder();
+      
+      const stream = new ReadableStream({
+        async start(controller) {
+          let buffer = "";
+          try {
+            while (true) {
+              const { done, value } = await reader.read();
+              if (done) {
+                controller.enqueue(encoder.encode("data: [DONE]\n\n"));
+                controller.close();
+                break;
+              }
+              buffer += decoder.decode(value, { stream: true });
+              let newlineIndex;
+              while ((newlineIndex = buffer.indexOf("\n")) !== -1) {
+                const line = buffer.slice(0, newlineIndex).trim();
+                buffer = buffer.slice(newlineIndex + 1);
+                if (!line.startsWith("data: ")) continue;
+                const jsonStr = line.slice(6);
+                try {
+                  const parsed = JSON.parse(jsonStr);
+                  if (parsed.type === "content_block_delta" && parsed.delta?.text) {
+                    const openaiChunk = {
+                      choices: [{ index: 0, delta: { content: parsed.delta.text } }],
+                    };
+                    controller.enqueue(encoder.encode(`data: ${JSON.stringify(openaiChunk)}\n\n`));
+                  }
+                } catch { /* skip */ }
+              }
+            }
+          } catch (e) {
+            controller.error(e);
+          }
+        },
+      });
+      
+      return new Response(stream, {
+        headers: { ...corsHeaders, "Content-Type": "text/event-stream" },
       });
     }
 

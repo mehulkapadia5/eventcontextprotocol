@@ -3,7 +3,8 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Progress } from "@/components/ui/progress";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Briefcase, Send, Brain, Trash2, Database, CheckCircle2, Target, Users, Rocket, BarChart3, Sparkles } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
+import { Briefcase, Send, Brain, Trash2, Database, CheckCircle2, Target, Users, Rocket, BarChart3, Sparkles, Cpu } from "lucide-react";
 import ReactMarkdown from "react-markdown";
 import { ChatMessageContent } from "@/components/chat/ChatMessageContent";
 import { toast } from "sonner";
@@ -58,7 +59,25 @@ export function StepBusinessContext({ data, onUpdate, onFinish, onClearContext, 
   const [analyticsMode, setAnalyticsMode] = useState(false);
   const [aiConfidence, setAiConfidence] = useState(0);
   const [hasAutoSent, setHasAutoSent] = useState(false);
+  const [activeModel, setActiveModel] = useState<string | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+
+  // Load user's model preference
+  useEffect(() => {
+    (async () => {
+      try {
+        const { supabase } = await import("@/integrations/supabase/client");
+        const { data: { session } } = await supabase.auth.getSession();
+        if (!session?.user?.id) return;
+        const { data } = await supabase.from("profiles").select("onboarding_data").eq("user_id", session.user.id).single();
+        const llm = (data?.onboarding_data as any)?.llm_config;
+        if (llm?.provider && llm.provider !== "default") {
+          const providerLabel = { openai: "OpenAI", anthropic: "Anthropic", google: "Google" }[llm.provider] || llm.provider;
+          setActiveModel(`${providerLabel} · ${llm.model || "default"}`);
+        }
+      } catch { /* ignore */ }
+    })();
+  }, []);
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -306,6 +325,12 @@ export function StepBusinessContext({ data, onUpdate, onFinish, onClearContext, 
               {!contextReady && <Progress value={understanding} className="h-1.5" />}
             </div>
             <div className="flex items-center gap-2 shrink-0">
+              {activeModel && (
+                <Badge variant="outline" className="text-[10px] font-mono gap-1 px-1.5 py-0.5">
+                  <Cpu className="h-2.5 w-2.5" />
+                  {activeModel}
+                </Badge>
+              )}
               <div className="flex items-center gap-1 text-xs text-muted-foreground font-mono">
                 <Database className="h-3 w-3" />
                 {formatBytes(contextBytes)}
