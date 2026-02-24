@@ -9,6 +9,7 @@ import { Label } from "@/components/ui/label";
 import { Check, CheckCircle2, MessageSquare, Loader2, FolderPlus, Sparkles, Key, Trash2 } from "lucide-react";
 import posthogLogo from "@/assets/posthog-logo.png";
 import mixpanelLogo from "@/assets/mixpanel-logo.png";
+import gaLogo from "@/assets/ga-logo.svg";
 import githubLogo from "@/assets/github-logo.png";
 import { Separator } from "@/components/ui/separator";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
@@ -25,6 +26,8 @@ interface OnboardingData {
     posthog_host?: string;
     mixpanel_secret?: string;
     mixpanel_project_id?: string;
+    ga_property_id?: string;
+    ga_service_account_json?: string;
   };
   codebase?: { github_url?: string; github_pat?: string };
   business?: { product_description?: string; audience?: string; goals?: string; [key: string]: string | undefined };
@@ -38,7 +41,7 @@ export function OnboardingCards() {
   const [loading, setLoading] = useState(true);
   const [openDialog, setOpenDialog] = useState<number | null>(null);
   const [saving, setSaving] = useState(false);
-  const [connected, setConnected] = useState<"posthog" | "mixpanel" | "github" | "project" | null>(null);
+  const [connected, setConnected] = useState<"posthog" | "mixpanel" | "ga" | "github" | "project" | null>(null);
 
   const [posthogKey, setPosthogKey] = useState("");
   const [mixpanelKey, setMixpanelKey] = useState("");
@@ -49,6 +52,8 @@ export function OnboardingCards() {
   const [mixpanelProjectId, setMixpanelProjectId] = useState("");
   const [githubUrl, setGithubUrl] = useState("");
   const [githubPat, setGithubPat] = useState("");
+  const [gaPropertyId, setGaPropertyId] = useState("");
+  const [gaServiceAccountJson, setGaServiceAccountJson] = useState("");
   const [newProjectName, setNewProjectName] = useState("");
   const [creatingProject, setCreatingProject] = useState(false);
 
@@ -81,6 +86,8 @@ export function OnboardingCards() {
       setPosthogHost(od.analytics?.posthog_host || "https://us.i.posthog.com");
       setMixpanelSecret(od.analytics?.mixpanel_secret || "");
       setMixpanelProjectId(od.analytics?.mixpanel_project_id || "");
+      setGaPropertyId(od.analytics?.ga_property_id || "");
+      setGaServiceAccountJson(od.analytics?.ga_service_account_json || "");
       setGithubUrl(od.codebase?.github_url || "");
       setGithubPat(od.codebase?.github_pat || "");
     }
@@ -89,7 +96,7 @@ export function OnboardingCards() {
 
   useEffect(() => { fetchProfile(); }, [fetchProfile]);
 
-  const saveData = async (updated: OnboardingData, connectedType?: "posthog" | "mixpanel" | "github" | "project") => {
+  const saveData = async (updated: OnboardingData, connectedType?: "posthog" | "mixpanel" | "ga" | "github" | "project") => {
     if (!session?.user?.id) return;
     setSaving(true);
     try {
@@ -145,7 +152,7 @@ export function OnboardingCards() {
     }
   };
 
-  const analyticsConnected = !!(data.analytics?.posthog_personal_key || data.analytics?.mixpanel_secret || data.analytics?.posthog_key || data.analytics?.mixpanel_key);
+  const analyticsConnected = !!(data.analytics?.posthog_personal_key || data.analytics?.mixpanel_secret || data.analytics?.ga_property_id || data.analytics?.posthog_key || data.analytics?.mixpanel_key);
   const codebaseConnected = !!data.codebase?.github_url;
   const businessDone = !!data.business?.product_description;
 
@@ -154,7 +161,7 @@ export function OnboardingCards() {
   if (loading) return null;
 
   const steps = [
-    { title: "Connect Analytics", description: "Link PostHog or Mixpanel to import event data", logo: <div className="flex items-center gap-2"><img src={posthogLogo} alt="PostHog" className="h-5 w-5" /><img src={mixpanelLogo} alt="Mixpanel" className="h-5 w-5" /></div>, done: analyticsConnected },
+    { title: "Connect Analytics", description: "Link PostHog, Mixpanel, or Google Analytics", logo: <div className="flex items-center gap-2"><img src={posthogLogo} alt="PostHog" className="h-5 w-5" /><img src={mixpanelLogo} alt="Mixpanel" className="h-5 w-5" /><img src={gaLogo} alt="Google Analytics" className="h-5 w-5" /></div>, done: analyticsConnected },
     { title: "Connect Codebase", description: "Link your GitHub repository for code-aware insights", logo: <img src={githubLogo} alt="GitHub" className="h-5 w-5" />, done: codebaseConnected },
     { title: "Business Context", description: "Chat with AI to describe your product", logo: <Sparkles className="h-4 w-4 text-muted-foreground" />, done: businessDone },
     { title: "Create Project", description: "Set up a project to get your API key for event tracking", logo: <Key className="h-4 w-4 text-muted-foreground" />, done: hasProject },
@@ -219,13 +226,13 @@ export function OnboardingCards() {
       {/* Analytics Dialog */}
       <Dialog open={openDialog === 0} onOpenChange={(open) => { if (!open) { setOpenDialog(null); setConnected(null); } }}>
         <DialogContent className="sm:max-w-md">
-          {connected === "posthog" || connected === "mixpanel" ? (
+          {connected === "posthog" || connected === "mixpanel" || connected === "ga" ? (
             <div className="flex flex-col items-center gap-3 py-8">
               <div className="w-12 h-12 rounded-full bg-primary/20 flex items-center justify-center">
                 <CheckCircle2 className="h-6 w-6 text-primary" />
               </div>
               <p className="font-semibold text-lg">
-                {connected === "posthog" ? "PostHog" : "Mixpanel"} Connected!
+                {connected === "posthog" ? "PostHog" : connected === "mixpanel" ? "Mixpanel" : "Google Analytics"} Connected!
               </p>
               <p className="text-sm text-muted-foreground">Your analytics data will be synced shortly.</p>
             </div>
@@ -235,6 +242,7 @@ export function OnboardingCards() {
                 <DialogTitle className="flex items-center gap-2">
                   <img src={posthogLogo} alt="PostHog" className="h-5 w-5" />
                   <img src={mixpanelLogo} alt="Mixpanel" className="h-5 w-5" />
+                  <img src={gaLogo} alt="Google Analytics" className="h-5 w-5" />
                   Connect Analytics
                 </DialogTitle>
                 <DialogDescription>Connect one of the following analytics platforms.</DialogDescription>
@@ -243,7 +251,7 @@ export function OnboardingCards() {
                 <div className="flex items-center justify-between rounded-lg border border-border p-3 bg-muted/30">
                   <div className="text-sm">
                     <span className="font-medium">
-                      {data.analytics?.posthog_personal_key ? "PostHog" : data.analytics?.mixpanel_secret ? "Mixpanel" : data.analytics?.posthog_key ? "PostHog (legacy)" : "Mixpanel (legacy)"}
+                      {data.analytics?.posthog_personal_key ? "PostHog" : data.analytics?.mixpanel_secret ? "Mixpanel" : data.analytics?.ga_property_id ? "Google Analytics" : data.analytics?.posthog_key ? "PostHog (legacy)" : "Mixpanel (legacy)"}
                     </span>
                     <span className="text-muted-foreground ml-1">connected</span>
                   </div>
@@ -260,6 +268,8 @@ export function OnboardingCards() {
                       setMixpanelKey("");
                       setMixpanelSecret("");
                       setMixpanelProjectId("");
+                      setGaPropertyId("");
+                      setGaServiceAccountJson("");
                       saveData(updated);
                       toast.success("Analytics disconnected.");
                     }}
@@ -352,6 +362,57 @@ export function OnboardingCards() {
                     }, "mixpanel")}
                   >
                     {saving ? <><Loader2 className="h-4 w-4 animate-spin mr-2" /> Saving...</> : "Connect Mixpanel"}
+                  </Button>
+                </div>
+
+                <div className="relative">
+                  <div className="absolute inset-0 flex items-center">
+                    <Separator className="w-full" />
+                  </div>
+                  <div className="relative flex justify-center text-xs uppercase">
+                    <span className="bg-background px-2 text-muted-foreground">or</span>
+                  </div>
+                </div>
+
+                <div className="space-y-3 border border-border rounded-lg p-4">
+                  <div className="flex items-center gap-2 mb-2">
+                    <img src={gaLogo} alt="Google Analytics" className="h-4 w-4" />
+                    <span className="font-medium text-sm">Google Analytics 4</span>
+                  </div>
+                  <div className="space-y-2">
+                    <Label className="flex items-center justify-between">
+                      Property ID <span className="text-destructive">*</span>
+                      <a href="https://analytics.google.com/analytics/web/#/a/p/admin/property" target="_blank" rel="noopener noreferrer" className="text-xs text-primary hover:underline font-normal">Find ID →</a>
+                    </Label>
+                    <Input placeholder="123456789" value={gaPropertyId} onChange={(e) => setGaPropertyId(e.target.value)} />
+                    <p className="text-xs text-muted-foreground">Found in GA4 Admin → Property Settings → Property ID.</p>
+                  </div>
+                  <div className="space-y-2">
+                    <Label className="flex items-center justify-between">
+                      Service Account JSON <span className="text-destructive">*</span>
+                      <a href="https://console.cloud.google.com/iam-admin/serviceaccounts" target="_blank" rel="noopener noreferrer" className="text-xs text-primary hover:underline font-normal">Create key →</a>
+                    </Label>
+                    <textarea
+                      className="flex w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 min-h-[80px] font-mono text-xs"
+                      placeholder='{"type":"service_account","project_id":"...","private_key":"..."}'
+                      value={gaServiceAccountJson}
+                      onChange={(e) => setGaServiceAccountJson(e.target.value)}
+                    />
+                    <p className="text-xs text-muted-foreground">Create a service account, grant it "Viewer" on your GA4 property, and paste the JSON key here.</p>
+                  </div>
+                  <Button
+                    className="w-full"
+                    disabled={!gaPropertyId || !gaServiceAccountJson || saving}
+                    onClick={() => saveData({
+                      ...data,
+                      analytics: {
+                        ...data.analytics,
+                        ga_property_id: gaPropertyId,
+                        ga_service_account_json: gaServiceAccountJson,
+                      },
+                    }, "ga")}
+                  >
+                    {saving ? <><Loader2 className="h-4 w-4 animate-spin mr-2" /> Saving...</> : "Connect Google Analytics"}
                   </Button>
                 </div>
               </div>
