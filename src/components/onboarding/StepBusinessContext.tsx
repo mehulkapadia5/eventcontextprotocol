@@ -2,7 +2,7 @@ import { useState, useRef, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Progress } from "@/components/ui/progress";
-import { Briefcase, Send, Brain } from "lucide-react";
+import { Briefcase, Send, Brain, Trash2, Database } from "lucide-react";
 import ReactMarkdown from "react-markdown";
 import { toast } from "sonner";
 
@@ -26,14 +26,21 @@ interface StepBusinessContextProps {
   data: { product_description?: string; audience?: string; goals?: string };
   onUpdate: (data: { product_description?: string; audience?: string; goals?: string; [key: string]: string | undefined }) => void;
   onFinish: () => void;
+  onClearContext?: () => void;
   isSubmitting: boolean;
   inline?: boolean;
   fullPage?: boolean;
 }
 
+function formatBytes(bytes: number): string {
+  if (bytes === 0) return "0 B";
+  if (bytes < 1024) return `${bytes} B`;
+  return `${(bytes / 1024).toFixed(1)} KB`;
+}
+
 const CHAT_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/business-context-chat`;
 
-export function StepBusinessContext({ data, onUpdate, onFinish, isSubmitting, inline, fullPage }: StepBusinessContextProps) {
+export function StepBusinessContext({ data, onUpdate, onFinish, onClearContext, isSubmitting, inline, fullPage }: StepBusinessContextProps) {
   const [messages, setMessages] = useState<Msg[]>([
     { role: "assistant", content: "Hey! I'd love to learn about your product so we can tailor ECP for you. What does your product do?", timestamp: new Date() },
   ]);
@@ -142,12 +149,14 @@ export function StepBusinessContext({ data, onUpdate, onFinish, isSubmitting, in
   // Calculate understanding % based on conversation depth
   const userMsgCount = messages.filter((m) => m.role === "user").length;
   const understanding = contextReady ? 100 : Math.min(95, userMsgCount * 20);
+  const contextBytes = new Blob([JSON.stringify(data)]).size;
+  const hasContext = data.product_description || data.audience || data.goals;
 
   // Full page layout (ChatGPT-style)
   if (fullPage) {
     return (
       <div className="flex flex-col h-full">
-        {/* Top bar with understanding % */}
+        {/* Top bar with understanding %, memory, and delete */}
         <div className="border-b border-border bg-background px-4 py-3">
           <div className="max-w-2xl mx-auto flex items-center gap-3">
             <Brain className="h-4 w-4 text-primary shrink-0" />
@@ -157,6 +166,23 @@ export function StepBusinessContext({ data, onUpdate, onFinish, isSubmitting, in
                 <span className="text-xs font-mono text-primary">{understanding}%</span>
               </div>
               <Progress value={understanding} className="h-1.5" />
+            </div>
+            <div className="flex items-center gap-2 shrink-0">
+              <div className="flex items-center gap-1 text-xs text-muted-foreground font-mono">
+                <Database className="h-3 w-3" />
+                {formatBytes(contextBytes)}
+              </div>
+              {(hasContext || messages.length > 1) && onClearContext && (
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-7 w-7 text-muted-foreground hover:text-destructive"
+                  onClick={onClearContext}
+                  title="Clear context"
+                >
+                  <Trash2 className="h-3.5 w-3.5" />
+                </Button>
+              )}
             </div>
           </div>
         </div>
