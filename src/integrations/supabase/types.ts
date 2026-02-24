@@ -14,6 +14,47 @@ export type Database = {
   }
   public: {
     Tables: {
+      event_annotations: {
+        Row: {
+          category: string | null
+          created_at: string | null
+          description: string | null
+          event_name: string
+          id: string
+          project_id: string | null
+          status: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          category?: string | null
+          created_at?: string | null
+          description?: string | null
+          event_name: string
+          id?: string
+          project_id?: string | null
+          status?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          category?: string | null
+          created_at?: string | null
+          description?: string | null
+          event_name?: string
+          id?: string
+          project_id?: string | null
+          status?: string | null
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "event_annotations_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       events: {
         Row: {
           created_at: string

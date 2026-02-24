@@ -211,6 +211,22 @@ serve(async (req) => {
       } catch { /* proceed without config */ }
     }
 
+    // Fetch event annotations to enrich context
+    if (supabase) {
+      const { data: annotations } = await supabase
+        .from("event_annotations")
+        .select("event_name, description, category")
+        .neq("status", "deprecated")
+        .limit(200);
+        
+      if (annotations && annotations.length > 0) {
+        systemPrompt += `\n\n## EVENT DICTIONARY (Use these to understand what events mean)\n`;
+        systemPrompt += annotations.map((a: any) => 
+          `- ${a.event_name}: ${a.description || "No description"} [${a.category || "general"}]`
+        ).join("\n");
+      }
+    }
+
     const endpoint = getAIEndpoint(llmConfig);
     if (!endpoint.apiKey) throw new Error("No API key configured");
 

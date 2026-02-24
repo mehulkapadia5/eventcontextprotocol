@@ -58,6 +58,17 @@ export function ChatPage() {
           .filter(Boolean)
           .join("\n");
         setRepoContext(summary);
+        
+        // Trigger event discovery in background
+        const { data: project } = await supabase.from("projects").select("id").eq("user_id", session?.user?.id).single();
+        if (project?.id) {
+          supabase.functions.invoke("discover-events", {
+            body: { repo_context: summary, project_id: project.id }
+          }).then(({ error }) => {
+            if (!error) toast.success("Event discovery started based on your codebase.");
+          });
+        }
+
         // Persist context so it's available instantly next time
         if (session?.user?.id) {
           supabase.from("profiles").update({

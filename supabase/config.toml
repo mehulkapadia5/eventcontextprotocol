@@ -14,3 +14,6 @@ verify_jwt = false
 
 [functions.analytics-chat]
 verify_jwt = false
+
+[functions.discover-events]
+verify_jwt = false
