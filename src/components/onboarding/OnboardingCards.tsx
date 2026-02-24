@@ -187,6 +187,7 @@ export function OnboardingCards() {
                       }}
                       onFinish={() => saveData({ ...data, business: data.business })}
                       isSubmitting={saving}
+                      inline
                     />
                   </div>
                 )}
