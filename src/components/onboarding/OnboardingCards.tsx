@@ -217,7 +217,10 @@ export function OnboardingCards() {
               </DialogHeader>
               <div className="space-y-4 pt-2">
                 <div className="space-y-2">
-                  <Label>PostHog API Key</Label>
+                  <Label className="flex items-center justify-between">
+                    PostHog API Key
+                    <a href="https://us.posthog.com/settings/project#variables" target="_blank" rel="noopener noreferrer" className="text-xs text-primary hover:underline font-normal">Find your key →</a>
+                  </Label>
                   <Input placeholder="phc_..." value={posthogKey} onChange={(e) => setPosthogKey(e.target.value)} />
                   <Button
                     className="w-full"
@@ -238,7 +241,10 @@ export function OnboardingCards() {
                 </div>
 
                 <div className="space-y-2">
-                  <Label>Mixpanel Project Token</Label>
+                  <Label className="flex items-center justify-between">
+                    Mixpanel Project Token
+                    <a href="https://mixpanel.com/settings/project#tokens" target="_blank" rel="noopener noreferrer" className="text-xs text-primary hover:underline font-normal">Find your token →</a>
+                  </Label>
                   <Input placeholder="Token..." value={mixpanelKey} onChange={(e) => setMixpanelKey(e.target.value)} />
                   <Button
                     className="w-full"
