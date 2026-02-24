@@ -47,6 +47,7 @@ export function StepBusinessContext({ data, onUpdate, onFinish, onClearContext, 
   const [input, setInput] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [contextReady, setContextReady] = useState(false);
+  const [aiConfidence, setAiConfidence] = useState(0);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -123,13 +124,26 @@ export function StepBusinessContext({ data, onUpdate, onFinish, onClearContext, 
         }
       }
 
+      // Parse confidence from response
+      const confidenceMatch = assistantSoFar.match(/CONFIDENCE:(\d+)\s*$/);
+      if (confidenceMatch) {
+        const conf = Math.min(100, Math.max(0, parseInt(confidenceMatch[1], 10)));
+        setAiConfidence(conf);
+        // Strip the confidence tag from displayed message
+        assistantSoFar = assistantSoFar.replace(/\nCONFIDENCE:\d+\s*$/, '').replace(/CONFIDENCE:\d+\s*$/, '');
+        setMessages((prev) =>
+          prev.map((m, i) => (i === prev.length - 1 ? { ...m, content: assistantSoFar } : m))
+        );
+      }
+
       if (assistantSoFar.includes("CONTEXT_COMPLETE:")) {
-        const jsonPart = assistantSoFar.split("CONTEXT_COMPLETE:")[1]?.trim();
+        const jsonPart = assistantSoFar.split("CONTEXT_COMPLETE:")[1]?.replace(/CONFIDENCE:\d+\s*$/, '').trim();
         try {
           const parsed = JSON.parse(jsonPart || "{}");
           onUpdate(parsed);
           setContextReady(true);
-          const cleanMsg = assistantSoFar.split("CONTEXT_COMPLETE:")[0].trim() ||
+          setAiConfidence(100);
+          const cleanMsg = assistantSoFar.split("CONTEXT_COMPLETE:")[0].replace(/\nCONFIDENCE:\d+\s*$/, '').trim() ||
             "Great, I've got a good understanding of your business! You're all set.";
           setMessages((prev) =>
             prev.map((m, i) => (i === prev.length - 1 ? { ...m, content: cleanMsg } : m))
@@ -146,9 +160,7 @@ export function StepBusinessContext({ data, onUpdate, onFinish, onClearContext, 
     }
   };
 
-  // Calculate understanding % based on conversation depth
-  const userMsgCount = messages.filter((m) => m.role === "user").length;
-  const understanding = contextReady ? 100 : Math.min(95, userMsgCount * 20);
+  const understanding = contextReady ? 100 : aiConfidence;
   const contextBytes = new Blob([JSON.stringify(data)]).size;
   const hasContext = data.product_description || data.audience || data.goals;
 
