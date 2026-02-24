@@ -3,7 +3,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Progress } from "@/components/ui/progress";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Briefcase, Send, Brain, Trash2, Database, CheckCircle2, Target, Users, Rocket, BarChart3 } from "lucide-react";
+import { Briefcase, Send, Brain, Trash2, Database, CheckCircle2, Target, Users, Rocket, BarChart3, Sparkles } from "lucide-react";
 import ReactMarkdown from "react-markdown";
 import { toast } from "sonner";
 
@@ -41,6 +41,7 @@ function formatBytes(bytes: number): string {
 }
 
 const CHAT_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/business-context-chat`;
+const ANALYTICS_CHAT_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/analytics-chat`;
 
 export function StepBusinessContext({ data, onUpdate, onFinish, onClearContext, isSubmitting, inline, fullPage, repoContext }: StepBusinessContextProps) {
   const [messages, setMessages] = useState<Msg[]>([
@@ -49,6 +50,7 @@ export function StepBusinessContext({ data, onUpdate, onFinish, onClearContext, 
   const [input, setInput] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [contextReady, setContextReady] = useState(false);
+  const [analyticsMode, setAnalyticsMode] = useState(false);
   const [aiConfidence, setAiConfidence] = useState(0);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
@@ -69,13 +71,21 @@ export function StepBusinessContext({ data, onUpdate, onFinish, onClearContext, 
     let assistantSoFar = "";
 
     try {
-      const resp = await fetch(CHAT_URL, {
+      const chatUrl = contextReady ? ANALYTICS_CHAT_URL : CHAT_URL;
+      const bodyPayload: any = { messages: newMessages };
+      if (!contextReady) {
+        bodyPayload.repo_context = repoContext || undefined;
+      } else {
+        bodyPayload.business_context = data;
+        if (repoContext) bodyPayload.repo_context = repoContext;
+      }
+      const resp = await fetch(chatUrl, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
           Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
         },
-        body: JSON.stringify({ messages: newMessages, repo_context: repoContext || undefined }),
+        body: JSON.stringify(bodyPayload),
       });
 
       if (!resp.ok) {
@@ -147,9 +157,12 @@ export function StepBusinessContext({ data, onUpdate, onFinish, onClearContext, 
           setAiConfidence(100);
           const cleanMsg = assistantSoFar.split("CONTEXT_COMPLETE:")[0].replace(/\nCONFIDENCE:\d+\s*$/, '').trim() ||
             "Great, I've got a good understanding of your business! You're all set.";
+          const transitionMsg = cleanMsg + "\n\n✨ **You can now ask me analytics questions!** I'll use your business context to give tailored insights about your events, metrics, and tracking strategy.";
           setMessages((prev) =>
-            prev.map((m, i) => (i === prev.length - 1 ? { ...m, content: cleanMsg } : m))
+            prev.map((m, i) => (i === prev.length - 1 ? { ...m, content: transitionMsg } : m))
           );
+          // Auto-save context
+          setTimeout(() => onFinish(), 500);
         } catch {
           // AI didn't return valid JSON, that's ok
         }
@@ -168,65 +181,27 @@ export function StepBusinessContext({ data, onUpdate, onFinish, onClearContext, 
 
   // Full page layout (ChatGPT-style)
   if (fullPage) {
-    if (contextReady) {
-      const summaryItems = [
-        { icon: Rocket, label: "Product", value: data.product_description },
-        { icon: Users, label: "Audience", value: data.audience },
-        { icon: Target, label: "Goals", value: data.goals },
-        { icon: BarChart3, label: "Stage", value: (data as any).stage },
-        { icon: Brain, label: "Challenges", value: (data as any).challenges },
-      ].filter(item => item.value);
-
-      return (
-        <div className="flex flex-col h-full items-center justify-center p-6">
-          <div className="max-w-lg w-full space-y-6 text-center animate-in fade-in zoom-in-95 duration-500">
-            <div className="mx-auto w-16 h-16 rounded-full bg-primary/15 flex items-center justify-center animate-in zoom-in duration-300">
-              <CheckCircle2 className="h-8 w-8 text-primary" />
-            </div>
-            <div className="space-y-2">
-              <h2 className="text-2xl font-bold">Business Context Captured!</h2>
-              <p className="text-muted-foreground text-sm">
-                We've got a great understanding of your product. Here's what we learned:
-              </p>
-            </div>
-
-            <Card className="text-left">
-              <CardHeader className="pb-3">
-                <CardTitle className="text-base">Your Business Summary</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-3">
-                {summaryItems.map((item, i) => (
-                  <div key={i} className="flex gap-3">
-                    <item.icon className="h-4 w-4 text-primary mt-0.5 shrink-0" />
-                    <div>
-                      <p className="text-xs font-medium text-muted-foreground">{item.label}</p>
-                      <p className="text-sm">{item.value}</p>
-                    </div>
-                  </div>
-                ))}
-              </CardContent>
-            </Card>
-
-            <Button onClick={onFinish} disabled={isSubmitting} size="lg" className="w-full">
-              {isSubmitting ? "Saving..." : "Save & Continue"}
-            </Button>
-          </div>
-        </div>
-      );
-    }
+    // No longer showing a separate summary screen - chat continues seamlessly
 
     return (
       <div className="flex flex-col h-full">
         {/* Top bar with understanding %, memory, and delete */}
         <div className="border-b border-border bg-background px-4 py-3">
           <div className="max-w-2xl mx-auto flex items-center gap-3">
-            <Brain className="h-4 w-4 text-primary shrink-0" />
+            {contextReady ? (
+              <Sparkles className="h-4 w-4 text-primary shrink-0" />
+            ) : (
+              <Brain className="h-4 w-4 text-primary shrink-0" />
+            )}
             <div className="flex-1 space-y-1">
               <div className="flex items-center justify-between">
-                <span className="text-xs font-medium text-muted-foreground">Business Understanding</span>
-                <span className="text-xs font-mono text-primary">{understanding}%</span>
+                <span className="text-xs font-medium text-muted-foreground">
+                  {contextReady ? "Analytics Assistant" : "Business Understanding"}
+                </span>
+                {!contextReady && <span className="text-xs font-mono text-primary">{understanding}%</span>}
+                {contextReady && <span className="text-xs font-mono text-primary">Ready</span>}
               </div>
-              <Progress value={understanding} className="h-1.5" />
+              {!contextReady && <Progress value={understanding} className="h-1.5" />}
             </div>
             <div className="flex items-center gap-2 shrink-0">
               <div className="flex items-center gap-1 text-xs text-muted-foreground font-mono">
@@ -288,7 +263,7 @@ export function StepBusinessContext({ data, onUpdate, onFinish, onClearContext, 
             <div className="flex gap-2 items-center">
               <Input
                 className="rounded-full px-4 h-11"
-                placeholder="Tell us about your business..."
+                placeholder={contextReady ? "Ask about analytics, events, metrics..." : "Tell us about your business..."}
                 value={input}
                 onChange={(e) => setInput(e.target.value)}
                 onKeyDown={(e) => e.key === "Enter" && !e.shiftKey && send()}
@@ -353,20 +328,18 @@ export function StepBusinessContext({ data, onUpdate, onFinish, onClearContext, 
           </div>
         </div>
 
-        {!contextReady && (
-          <div className="border-t border-border p-3 flex gap-2">
-            <Input
-              placeholder="Type your answer..."
-              value={input}
-              onChange={(e) => setInput(e.target.value)}
-              onKeyDown={(e) => e.key === "Enter" && !e.shiftKey && send()}
-              disabled={isLoading}
-            />
-            <Button size="icon" onClick={send} disabled={isLoading || !input.trim()}>
-              <Send className="h-4 w-4" />
-            </Button>
-          </div>
-        )}
+        <div className="border-t border-border p-3 flex gap-2">
+          <Input
+            placeholder={contextReady ? "Ask about analytics..." : "Type your answer..."}
+            value={input}
+            onChange={(e) => setInput(e.target.value)}
+            onKeyDown={(e) => e.key === "Enter" && !e.shiftKey && send()}
+            disabled={isLoading}
+          />
+          <Button size="icon" onClick={send} disabled={isLoading || !input.trim()}>
+            <Send className="h-4 w-4" />
+          </Button>
+        </div>
       </div>
 
       {!inline && (

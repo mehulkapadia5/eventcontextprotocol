@@ -11,3 +11,6 @@ verify_jwt = false
 
 [functions.business-context-chat]
 verify_jwt = false
+
+[functions.analytics-chat]
+verify_jwt = false
