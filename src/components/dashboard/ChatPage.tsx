@@ -28,8 +28,10 @@ export function ChatPage() {
     const od = (profile as any)?.onboarding_data as OnboardingData | null;
     if (od) {
       setData(od);
-      // Fetch GitHub context if repo is connected
-      if (od.codebase?.github_url) {
+      // Use persisted context if available, otherwise fetch live
+      if ((od.codebase as any)?.context) {
+        setRepoContext((od.codebase as any).context);
+      } else if (od.codebase?.github_url) {
         fetchGitHubContext(od.codebase.github_url, od.codebase.github_pat);
       }
     }
@@ -56,6 +58,15 @@ export function ChatPage() {
           .filter(Boolean)
           .join("\n");
         setRepoContext(summary);
+        // Persist context so it's available instantly next time
+        if (session?.user?.id) {
+          supabase.from("profiles").update({
+            onboarding_data: {
+              ...data,
+              codebase: { ...data.codebase, context: summary },
+            },
+          } as any).eq("user_id", session.user.id).then(() => {});
+        }
       }
     } catch (e) {
       console.warn("Failed to fetch GitHub context:", e);
