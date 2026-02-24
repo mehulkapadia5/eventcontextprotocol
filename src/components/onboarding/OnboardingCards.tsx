@@ -197,7 +197,7 @@ export function OnboardingCards() {
                     </div>
                   </div>
                   {step.done ? (
-                    <Button variant="ghost" size="sm" className="text-xs text-muted-foreground" onClick={(e) => { e.stopPropagation(); setOpenDialog(i); }}>
+                    <Button variant="ghost" size="sm" className="text-xs text-muted-foreground" onClick={(e) => { e.stopPropagation(); if (i === 2) { navigate("/dashboard/chat"); } else { setOpenDialog(i); } }}>
                       Edit
                     </Button>
                   ) : (
