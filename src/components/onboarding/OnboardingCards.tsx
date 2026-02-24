@@ -519,7 +519,7 @@ export function OnboardingCards() {
             <>
               <DialogHeader>
                 <DialogTitle>Create Project</DialogTitle>
-                <DialogDescription>Create a project to get an API key for event tracking.</DialogDescription>
+                <DialogDescription>Name your project to isolate it from other projects connected to the same analytics account — makes it easier to tell them apart.</DialogDescription>
               </DialogHeader>
               <div className="space-y-4 pt-2">
                 <div className="space-y-2">
