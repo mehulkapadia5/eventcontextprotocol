@@ -2,3 +2,6 @@ project_id = "zhapiidqiqmsphqocuei"
 
 [functions.ingest-events]
 verify_jwt = false
+
+[functions.fetch-external-events]
+verify_jwt = false

@@ -1,14 +1,53 @@
+import { useState } from "react";
 import { useAuth } from "@/hooks/use-auth";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Activity, BarChart3, CalendarDays, Users } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Activity, BarChart3, CalendarDays, Loader2, RefreshCw, Users } from "lucide-react";
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, LineChart, Line } from "recharts";
 import { OnboardingCards } from "@/components/onboarding/OnboardingCards";
-
+import { toast } from "sonner";
 export function DashboardOverview() {
   const { session } = useAuth();
+  const queryClient = useQueryClient();
+  const [syncing, setSyncing] = useState(false);
 
+  const { data: profile } = useQuery({
+    queryKey: ["profile"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("profiles")
+        .select("onboarding_data")
+        .eq("user_id", session!.user.id)
+        .single();
+      if (error) throw error;
+      return data;
+    },
+    enabled: !!session?.user?.id,
+  });
+
+  const analyticsData = (profile?.onboarding_data as any)?.analytics;
+  const hasReadKeys = !!(analyticsData?.posthog_personal_key || analyticsData?.mixpanel_secret);
+
+  const handleSync = async () => {
+    setSyncing(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("fetch-external-events");
+      if (error) throw error;
+      if (data?.error) {
+        toast.error(data.error);
+      } else {
+        toast.success(`Synced ${data.count} events from ${data.source}`);
+        queryClient.invalidateQueries({ queryKey: ["events-overview"] });
+        queryClient.invalidateQueries({ queryKey: ["events-explorer"] });
+      }
+    } catch (err: any) {
+      toast.error(err.message || "Failed to sync events");
+    } finally {
+      setSyncing(false);
+    }
+  };
   const { data: projects } = useQuery({
     queryKey: ["projects"],
     queryFn: async () => {
@@ -75,7 +114,18 @@ export function DashboardOverview() {
 
   return (
     <div className="space-y-6">
-      <h1 className="text-2xl font-bold">Dashboard</h1>
+      <div className="flex items-center justify-between">
+        <h1 className="text-2xl font-bold">Dashboard</h1>
+        {hasReadKeys && (
+          <Button variant="outline" size="sm" onClick={handleSync} disabled={syncing}>
+            {syncing ? (
+              <><Loader2 className="h-4 w-4 animate-spin mr-2" /> Syncing...</>
+            ) : (
+              <><RefreshCw className="h-4 w-4 mr-2" /> Sync Events</>
+            )}
+          </Button>
+        )}
+      </div>
 
       <OnboardingCards />
 
