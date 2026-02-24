@@ -24,7 +24,6 @@ async function createGoogleJWT(serviceAccount: any): Promise<string> {
   const claimB64 = encode(claim);
   const signingInput = `${headerB64}.${claimB64}`;
 
-  // Import the private key
   const pemContent = serviceAccount.private_key
     .replace("-----BEGIN PRIVATE KEY-----", "")
     .replace("-----END PRIVATE KEY-----", "")
@@ -69,7 +68,6 @@ serve(async (req) => {
   }
 
   try {
-    // Authenticate user
     const authHeader = req.headers.get("Authorization");
     if (!authHeader?.startsWith("Bearer ")) {
       return new Response(JSON.stringify({ error: "Unauthorized" }), {
@@ -92,13 +90,46 @@ serve(async (req) => {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
-    const userId = claimsData.claims.sub;
+    const callerUserId = claimsData.claims.sub;
 
-    // Get user profile with analytics keys
-    const { data: profile, error: profileError } = await supabase
+    // Check if a target_user_id was provided (admin feature)
+    let targetUserId = callerUserId;
+    let body: any = {};
+    try {
+      body = await req.json();
+    } catch {
+      // no body is fine
+    }
+
+    if (body.target_user_id && body.target_user_id !== callerUserId) {
+      // Verify caller is admin using service role
+      const adminSupabase = createClient(
+        Deno.env.get("SUPABASE_URL")!,
+        Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
+      );
+      const { data: isAdmin } = await adminSupabase.rpc("has_role", {
+        _user_id: callerUserId,
+        _role: "admin",
+      });
+      if (!isAdmin) {
+        return new Response(JSON.stringify({ error: "Admin access required" }), {
+          status: 403,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+      targetUserId = body.target_user_id;
+    }
+
+    // Use service role for reading target user's profile and inserting events
+    const adminSupabase = createClient(
+      Deno.env.get("SUPABASE_URL")!,
+      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
+    );
+
+    const { data: profile, error: profileError } = await adminSupabase
       .from("profiles")
       .select("onboarding_data")
-      .eq("user_id", userId)
+      .eq("user_id", targetUserId)
       .single();
 
     if (profileError || !profile) {
@@ -118,28 +149,22 @@ serve(async (req) => {
       });
     }
 
-    // Get user's first project to store events in
-    const { data: projects } = await supabase
+    // Get target user's first project
+    const { data: projects } = await adminSupabase
       .from("projects")
       .select("id")
-      .eq("user_id", userId)
+      .eq("user_id", targetUserId)
       .order("created_at", { ascending: true })
       .limit(1);
 
     if (!projects || projects.length === 0) {
-      return new Response(JSON.stringify({ error: "No project found. Create a project first." }), {
+      return new Response(JSON.stringify({ error: "No project found for this user." }), {
         status: 400,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
 
     const projectId = projects[0].id;
-
-    // Use service role for inserting events (bypasses RLS)
-    const adminSupabase = createClient(
-      Deno.env.get("SUPABASE_URL")!,
-      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
-    );
 
     let fetchedEvents: any[] = [];
     let source = "";
@@ -243,7 +268,6 @@ serve(async (req) => {
         const accessToken = await getGoogleAccessToken(serviceAccount);
         const propertyId = analytics.ga_property_id;
 
-        // Fetch last 7 days of event data using GA4 Data API
         const toDate = new Date().toISOString().split("T")[0];
         const fromDate = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString().split("T")[0];
 
@@ -291,7 +315,6 @@ serve(async (req) => {
           const eventCount = parseInt(row.metricValues?.[0]?.value || "1", 10);
           const totalUsers = parseInt(row.metricValues?.[1]?.value || "0", 10);
 
-          // Parse GA date format YYYYMMDD
           const year = dateStr.slice(0, 4);
           const month = dateStr.slice(4, 6);
           const day = dateStr.slice(6, 8);
@@ -325,13 +348,12 @@ serve(async (req) => {
           success: true,
           source: source || "none",
           count: 0,
-          message: "No events found or no valid read API keys configured. Make sure you've provided valid credentials.",
+          message: "No events found or no valid read API keys configured.",
         }),
         { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
-    // Insert events
     const { error: insertError } = await adminSupabase.from("events").insert(fetchedEvents);
 
     if (insertError) {

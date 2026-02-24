@@ -115,6 +115,20 @@ export function OnboardingCards() {
         .eq("user_id", session.user.id);
       if (error) throw error;
       setData(updated);
+
+      // Auto-sync events when analytics keys are saved
+      const isAnalyticsConnect = connectedType === "posthog" || connectedType === "mixpanel" || connectedType === "ga";
+      if (isAnalyticsConnect) {
+        // Fire and forget - sync in background
+        supabase.functions.invoke("fetch-external-events").then(({ data: syncData, error: syncError }) => {
+          if (syncError) {
+            console.error("Auto-sync failed:", syncError);
+          } else if (syncData?.count > 0) {
+            toast.success(`Auto-synced ${syncData.count} events from ${syncData.source}`);
+          }
+        });
+      }
+
       if (connectedType) {
         setConnected(connectedType);
         setTimeout(() => {
