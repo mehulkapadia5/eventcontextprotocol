@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import type { Session } from "@supabase/supabase-js";
 import { useNavigate } from "react-router-dom";
+import { identifyUser, resetPostHog } from "@/lib/posthog";
 
 export function useAuth() {
   const [session, setSession] = useState<Session | null>(null);
@@ -10,9 +11,15 @@ export function useAuth() {
 
   useEffect(() => {
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      (_event, session) => {
+      (event, session) => {
         setSession(session);
         setLoading(false);
+        if (session?.user) {
+          identifyUser(session.user.id, { email: session.user.email });
+        }
+        if (event === 'SIGNED_OUT') {
+          resetPostHog();
+        }
       }
     );
 
