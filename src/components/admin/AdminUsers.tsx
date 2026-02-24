@@ -1,11 +1,16 @@
+import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
-import { CheckCircle2, XCircle } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { CheckCircle2, XCircle, LogIn, Loader2, ExternalLink } from "lucide-react";
+import { toast } from "sonner";
 
 export function AdminUsers() {
+  const [generatingFor, setGeneratingFor] = useState<string | null>(null);
+
   const { data: users, isLoading } = useQuery({
     queryKey: ["admin-users"],
     queryFn: async () => {
@@ -31,6 +36,25 @@ export function AdminUsers() {
     roleMap.set(r.user_id, existing);
   });
 
+  const handleLoginAs = async (email: string) => {
+    setGeneratingFor(email);
+    try {
+      const { data, error } = await supabase.functions.invoke("admin-impersonate", {
+        body: { user_email: email },
+      });
+      if (error) throw error;
+      if (data?.error) throw new Error(data.error);
+      if (data?.url) {
+        window.open(data.url, "_blank");
+        toast.success(`Login link opened for ${email}`);
+      }
+    } catch (e: any) {
+      toast.error(e.message || "Failed to generate login link");
+    } finally {
+      setGeneratingFor(null);
+    }
+  };
+
   return (
     <div className="space-y-6">
       <h1 className="text-2xl font-bold">Users</h1>
@@ -43,11 +67,12 @@ export function AdminUsers() {
                 <TableHead>Onboarding</TableHead>
                 <TableHead>Roles</TableHead>
                 <TableHead>Joined</TableHead>
+                <TableHead className="text-right">Actions</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {isLoading && (
-                <TableRow><TableCell colSpan={4} className="text-center text-muted-foreground">Loading...</TableCell></TableRow>
+                <TableRow><TableCell colSpan={5} className="text-center text-muted-foreground">Loading...</TableCell></TableRow>
               )}
               {users?.map((u) => (
                 <TableRow key={u.id}>
@@ -67,10 +92,27 @@ export function AdminUsers() {
                   <TableCell className="text-muted-foreground text-sm font-mono">
                     {new Date(u.created_at).toLocaleDateString()}
                   </TableCell>
+                  <TableCell className="text-right">
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="gap-1 text-xs"
+                      disabled={generatingFor === u.display_name}
+                      onClick={() => handleLoginAs(u.display_name || "")}
+                    >
+                      {generatingFor === u.display_name ? (
+                        <Loader2 className="h-3 w-3 animate-spin" />
+                      ) : (
+                        <LogIn className="h-3 w-3" />
+                      )}
+                      Login as
+                      <ExternalLink className="h-3 w-3" />
+                    </Button>
+                  </TableCell>
                 </TableRow>
               ))}
               {!isLoading && !users?.length && (
-                <TableRow><TableCell colSpan={4} className="text-center text-muted-foreground">No users found.</TableCell></TableRow>
+                <TableRow><TableCell colSpan={5} className="text-center text-muted-foreground">No users found.</TableCell></TableRow>
               )}
             </TableBody>
           </Table>
