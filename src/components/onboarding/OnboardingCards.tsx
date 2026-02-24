@@ -6,7 +6,10 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Label } from "@/components/ui/label";
-import { Activity, GitBranch, Sparkles, Check, CheckCircle2, MessageSquare, Loader2, FolderPlus, Key } from "lucide-react";
+import { Check, CheckCircle2, MessageSquare, Loader2, FolderPlus, Sparkles, Key } from "lucide-react";
+import { PostHogIcon } from "@/components/icons/PostHogIcon";
+import { MixpanelIcon } from "@/components/icons/MixpanelIcon";
+import { GitHubIcon } from "@/components/icons/GitHubIcon";
 import { Separator } from "@/components/ui/separator";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { supabase } from "@/integrations/supabase/client";
@@ -130,10 +133,10 @@ export function OnboardingCards() {
   if (loading) return null;
 
   const steps = [
-    { title: "Connect Analytics", description: "Link PostHog or Mixpanel to import event data", icon: Activity, done: analyticsConnected },
-    { title: "Connect Codebase", description: "Link your GitHub repository for code-aware insights", icon: GitBranch, done: codebaseConnected },
-    { title: "Business Context", description: "Chat with AI to describe your product", icon: Sparkles, done: businessDone },
-    { title: "Create Project", description: "Set up a project to get your API key for event tracking", icon: Key, done: hasProject },
+    { title: "Connect Analytics", description: "Link PostHog or Mixpanel to import event data", logo: <div className="flex -space-x-1"><PostHogIcon className="h-4 w-4" /><MixpanelIcon className="h-4 w-4 rounded-full" /></div>, done: analyticsConnected },
+    { title: "Connect Codebase", description: "Link your GitHub repository for code-aware insights", logo: <GitHubIcon className="h-5 w-5" />, done: codebaseConnected },
+    { title: "Business Context", description: "Chat with AI to describe your product", logo: <Sparkles className="h-4 w-4 text-muted-foreground" />, done: businessDone },
+    { title: "Create Project", description: "Set up a project to get your API key for event tracking", logo: <Key className="h-4 w-4 text-muted-foreground" />, done: hasProject },
   ];
 
   return (
@@ -146,7 +149,7 @@ export function OnboardingCards() {
           </Badge>
         </div>
 
-        <div className="grid gap-3 md:grid-cols-4">
+        <div className="grid gap-3 md:grid-cols-2">
           {steps.map((step, i) => (
             <Card
               key={i}
@@ -164,7 +167,7 @@ export function OnboardingCards() {
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-3">
                     <div className={`w-8 h-8 rounded-full flex items-center justify-center ${step.done ? "bg-primary/20" : "bg-muted"}`}>
-                      {step.done ? <Check className="h-4 w-4 text-primary" /> : <step.icon className="h-4 w-4 text-muted-foreground" />}
+                      {step.done ? <Check className="h-4 w-4 text-primary" /> : step.logo}
                     </div>
                     <div>
                       <CardTitle className="text-sm">{step.title}</CardTitle>
