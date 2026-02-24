@@ -13,11 +13,12 @@ interface StepBusinessContextProps {
   onUpdate: (data: { product_description?: string; audience?: string; goals?: string; [key: string]: string | undefined }) => void;
   onFinish: () => void;
   isSubmitting: boolean;
+  inline?: boolean;
 }
 
 const CHAT_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/business-context-chat`;
 
-export function StepBusinessContext({ data, onUpdate, onFinish, isSubmitting }: StepBusinessContextProps) {
+export function StepBusinessContext({ data, onUpdate, onFinish, isSubmitting, inline }: StepBusinessContextProps) {
   const [messages, setMessages] = useState<Msg[]>([
     { role: "assistant", content: "Hey! I'd love to learn about your product so we can tailor ECP for you. What does your product do?" },
   ]);
@@ -129,17 +130,19 @@ export function StepBusinessContext({ data, onUpdate, onFinish, isSubmitting }: 
 
   return (
     <div className="space-y-4">
-      <div className="text-center space-y-2">
-        <div className="mx-auto w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center">
-          <Briefcase className="h-6 w-6 text-primary" />
+      {!inline && (
+        <div className="text-center space-y-2">
+          <div className="mx-auto w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center">
+            <Briefcase className="h-6 w-6 text-primary" />
+          </div>
+          <h2 className="text-2xl font-bold">Business Context</h2>
+          <p className="text-muted-foreground text-sm max-w-md mx-auto">
+            Chat with our AI to help us understand your business — it'll only take a minute.
+          </p>
         </div>
-        <h2 className="text-2xl font-bold">Business Context</h2>
-        <p className="text-muted-foreground text-sm max-w-md mx-auto">
-          Chat with our AI to help us understand your business — it'll only take a minute.
-        </p>
-      </div>
+      )}
 
-      <div className="max-w-lg mx-auto border border-border rounded-lg overflow-hidden bg-card">
+      <div className={`${inline ? "" : "max-w-lg mx-auto"} border border-border rounded-lg overflow-hidden bg-card`}>
         <ScrollArea className="h-80 p-4" ref={scrollRef}>
           <div className="space-y-4">
             {messages.map((msg, i) => (
