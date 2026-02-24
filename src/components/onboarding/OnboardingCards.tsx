@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Label } from "@/components/ui/label";
-import { Check, CheckCircle2, MessageSquare, Loader2, FolderPlus, Sparkles, Key } from "lucide-react";
+import { Check, CheckCircle2, MessageSquare, Loader2, FolderPlus, Sparkles, Key, Trash2 } from "lucide-react";
 import posthogLogo from "@/assets/posthog-logo.png";
 import mixpanelLogo from "@/assets/mixpanel-logo.png";
 import githubLogo from "@/assets/github-logo.png";
@@ -147,7 +147,8 @@ export function OnboardingCards() {
   const codebaseConnected = !!data.codebase?.github_url;
   const businessDone = !!data.business?.product_description;
 
-  if (!loading && analyticsConnected && codebaseConnected && businessDone && hasProject) return null;
+  // Always show the cards so users can edit/delete connections
+  // if (!loading && analyticsConnected && codebaseConnected && businessDone && hasProject) return null;
   if (loading) return null;
 
   const steps = [
@@ -171,9 +172,8 @@ export function OnboardingCards() {
           {steps.map((step, i) => (
             <Card
               key={i}
-              className={`transition-all ${step.done ? "border-primary/40 opacity-75" : "cursor-pointer hover:border-primary/30"}`}
+              className={`transition-all cursor-pointer ${step.done ? "border-primary/40" : "hover:border-primary/30"}`}
               onClick={() => {
-                if (step.done) return;
                 if (i === 2) {
                   navigate("/dashboard/chat");
                 } else {
@@ -196,7 +196,11 @@ export function OnboardingCards() {
                       <CardDescription className="text-xs">{step.description}</CardDescription>
                     </div>
                   </div>
-                  {!step.done && (
+                  {step.done ? (
+                    <Button variant="ghost" size="sm" className="text-xs text-muted-foreground" onClick={(e) => { e.stopPropagation(); setOpenDialog(i); }}>
+                      Edit
+                    </Button>
+                  ) : (
                     i === 2
                       ? <MessageSquare className="h-4 w-4 text-muted-foreground" />
                       : <Button variant="outline" size="sm" onClick={(e) => { e.stopPropagation(); setOpenDialog(i); }}>
@@ -233,6 +237,35 @@ export function OnboardingCards() {
                 </DialogTitle>
                 <DialogDescription>Connect one of the following analytics platforms.</DialogDescription>
               </DialogHeader>
+              {analyticsConnected && (
+                <div className="flex items-center justify-between rounded-lg border border-border p-3 bg-muted/30">
+                  <div className="text-sm">
+                    <span className="font-medium">
+                      {data.analytics?.posthog_personal_key ? "PostHog" : data.analytics?.mixpanel_secret ? "Mixpanel" : data.analytics?.posthog_key ? "PostHog (legacy)" : "Mixpanel (legacy)"}
+                    </span>
+                    <span className="text-muted-foreground ml-1">connected</span>
+                  </div>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="text-destructive hover:text-destructive hover:bg-destructive/10"
+                    onClick={() => {
+                      const updated = { ...data, analytics: {} };
+                      setPosthogKey("");
+                      setPosthogPersonalKey("");
+                      setPosthogProjectId("");
+                      setPosthogHost("https://us.i.posthog.com");
+                      setMixpanelKey("");
+                      setMixpanelSecret("");
+                      setMixpanelProjectId("");
+                      saveData(updated);
+                      toast.success("Analytics disconnected.");
+                    }}
+                  >
+                    <Trash2 className="h-4 w-4 mr-1" /> Disconnect
+                  </Button>
+                </div>
+              )}
               <div className="space-y-4 pt-2 max-h-[60vh] overflow-y-auto">
                 <div className="space-y-3 border border-border rounded-lg p-4">
                   <div className="flex items-center gap-2 mb-2">
@@ -346,6 +379,26 @@ export function OnboardingCards() {
                 <DialogDescription>Link your GitHub repository for code-aware insights.</DialogDescription>
               </DialogHeader>
               <div className="space-y-4 pt-2">
+                {codebaseConnected && (
+                  <div className="flex items-center justify-between rounded-lg border border-border p-3 bg-muted/30">
+                    <div className="text-sm">
+                      <span className="font-medium truncate max-w-[200px] inline-block align-middle">{data.codebase?.github_url}</span>
+                    </div>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="text-destructive hover:text-destructive hover:bg-destructive/10 shrink-0"
+                      onClick={() => {
+                        const updated = { ...data, codebase: {} };
+                        setGithubUrl("");
+                        saveData(updated);
+                        toast.success("Repository disconnected.");
+                      }}
+                    >
+                      <Trash2 className="h-4 w-4 mr-1" /> Disconnect
+                    </Button>
+                  </div>
+                )}
                 <div className="space-y-2">
                   <Label>GitHub Repository URL</Label>
                   <Input placeholder="https://github.com/org/repo" value={githubUrl} onChange={(e) => setGithubUrl(e.target.value)} />
@@ -355,7 +408,7 @@ export function OnboardingCards() {
                   disabled={!githubUrl || saving}
                   onClick={() => saveData({ ...data, codebase: { github_url: githubUrl } }, "github")}
                 >
-                  {saving ? <><Loader2 className="h-4 w-4 animate-spin mr-2" /> Verifying...</> : "Connect Repository"}
+                  {saving ? <><Loader2 className="h-4 w-4 animate-spin mr-2" /> Verifying...</> : codebaseConnected ? "Update Repository" : "Connect Repository"}
                 </Button>
               </div>
             </>
