@@ -79,11 +79,17 @@ export function StepBusinessContext({ data, onUpdate, onFinish, onClearContext, 
         bodyPayload.business_context = data;
         if (repoContext) bodyPayload.repo_context = repoContext;
       }
+
+      // Use session token if available for authenticated data access
+      const { data: sessionData } = await (await import("@/integrations/supabase/client")).supabase.auth.getSession();
+      const token = sessionData?.session?.access_token || import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
+
       const resp = await fetch(chatUrl, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
+          Authorization: `Bearer ${token}`,
+          apikey: import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
         },
         body: JSON.stringify(bodyPayload),
       });
