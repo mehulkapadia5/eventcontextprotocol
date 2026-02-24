@@ -133,7 +133,7 @@ export function OnboardingCards() {
   if (loading) return null;
 
   const steps = [
-    { title: "Connect Analytics", description: "Link PostHog or Mixpanel to import event data", logo: <div className="flex -space-x-1"><img src={posthogLogo} alt="PostHog" className="h-4 w-4 rounded-sm" /><img src={mixpanelLogo} alt="Mixpanel" className="h-4 w-4 rounded-sm" /></div>, done: analyticsConnected },
+    { title: "Connect Analytics", description: "Link PostHog or Mixpanel to import event data", logo: <div className="flex items-center gap-2"><img src={posthogLogo} alt="PostHog" className="h-5 w-5" /><img src={mixpanelLogo} alt="Mixpanel" className="h-5 w-5" /></div>, done: analyticsConnected },
     { title: "Connect Codebase", description: "Link your GitHub repository for code-aware insights", logo: <GitHubIcon className="h-5 w-5" />, done: codebaseConnected },
     { title: "Business Context", description: "Chat with AI to describe your product", logo: <Sparkles className="h-4 w-4 text-muted-foreground" />, done: businessDone },
     { title: "Create Project", description: "Set up a project to get your API key for event tracking", logo: <Key className="h-4 w-4 text-muted-foreground" />, done: hasProject },
@@ -165,10 +165,14 @@ export function OnboardingCards() {
             >
               <CardHeader className="pb-4">
                 <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-3">
-                    <div className={`w-8 h-8 rounded-full flex items-center justify-center ${step.done ? "bg-primary/20" : "bg-muted"}`}>
-                      {step.done ? <Check className="h-4 w-4 text-primary" /> : step.logo}
-                    </div>
+                   <div className="flex items-center gap-3">
+                    {step.done ? (
+                      <div className="w-8 h-8 rounded-full flex items-center justify-center bg-primary/20">
+                        <Check className="h-4 w-4 text-primary" />
+                      </div>
+                    ) : (
+                      step.logo
+                    )}
                     <div>
                       <CardTitle className="text-sm">{step.title}</CardTitle>
                       <CardDescription className="text-xs">{step.description}</CardDescription>
