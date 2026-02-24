@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
@@ -21,6 +21,7 @@ interface OnboardingData {
 export function AdminImpersonateChat() {
   const [selectedUserId, setSelectedUserId] = useState<string | null>(null);
   const [userData, setUserData] = useState<OnboardingData>({});
+  const userDataRef = useRef<OnboardingData>({});
   const [repoContext, setRepoContext] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [chatKey, setChatKey] = useState(0);
@@ -43,6 +44,7 @@ export function AdminImpersonateChat() {
     const od = (selectedUser.onboarding_data as any) as OnboardingData | null;
     const d = od || {};
     setUserData(d);
+    userDataRef.current = d;
     setRepoContext(d.codebase?.context || null);
     setEditBiz({
       product_description: d.business?.product_description || "",
@@ -82,11 +84,13 @@ export function AdminImpersonateChat() {
     if (!selectedUserId) return;
     setSaving(true);
     try {
+      const latest = userDataRef.current;
       const { error } = await supabase
         .from("profiles")
-        .update({ onboarding_data: userData, onboarding_completed: true } as any)
+        .update({ onboarding_data: latest, onboarding_completed: true } as any)
         .eq("user_id", selectedUserId);
       if (error) throw error;
+      setUserData(latest);
       toast.success("Context saved!");
     } catch {
       toast.error("Failed to save.");
@@ -230,7 +234,11 @@ export function AdminImpersonateChat() {
           <StepBusinessContext
             key={chatKey}
             data={userData.business || {}}
-            onUpdate={(biz) => setUserData((prev) => ({ ...prev, business: biz }))}
+            onUpdate={(biz) => {
+              const updated = { ...userDataRef.current, business: biz };
+              userDataRef.current = updated;
+              setUserData(updated);
+            }}
             onFinish={handleFinish}
             onClearContext={handleClearContext}
             isSubmitting={saving}
