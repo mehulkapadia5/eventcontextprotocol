@@ -15,6 +15,7 @@ export function ChatPage() {
   const [data, setData] = useState<OnboardingData>({});
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [resetKey, setResetKey] = useState(0);
 
   const fetchProfile = useCallback(async () => {
     if (!session?.user?.id) return;
@@ -54,14 +55,36 @@ export function ChatPage() {
     }
   };
 
+  const handleClearContext = async () => {
+    if (!session?.user?.id) return;
+    try {
+      const updated = { ...data, business: {} };
+      const { error } = await supabase
+        .from("profiles")
+        .update({
+          onboarding_data: updated,
+          onboarding_completed: false,
+        } as any)
+        .eq("user_id", session.user.id);
+      if (error) throw error;
+      setData(updated);
+      setResetKey((k) => k + 1);
+      toast.success("Context cleared. Start a new conversation.");
+    } catch {
+      toast.error("Failed to clear context.");
+    }
+  };
+
   if (loading) return <div className="flex-1" />;
 
   return (
     <div className="flex flex-col h-[calc(100vh-3rem)] -m-6 md:-m-8">
       <StepBusinessContext
+        key={resetKey}
         data={data.business || {}}
         onUpdate={(biz) => setData((prev) => ({ ...prev, business: biz }))}
         onFinish={handleFinish}
+        onClearContext={handleClearContext}
         isSubmitting={saving}
         fullPage
       />
