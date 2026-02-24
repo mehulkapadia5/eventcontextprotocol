@@ -1,7 +1,8 @@
 import { useState, useRef, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Briefcase, Send, Loader2 } from "lucide-react";
+import { Progress } from "@/components/ui/progress";
+import { Briefcase, Send, Loader2, Brain } from "lucide-react";
 import ReactMarkdown from "react-markdown";
 import { toast } from "sonner";
 
@@ -124,10 +125,28 @@ export function StepBusinessContext({ data, onUpdate, onFinish, isSubmitting, in
     }
   };
 
+  // Calculate understanding % based on conversation depth
+  const userMsgCount = messages.filter((m) => m.role === "user").length;
+  const understanding = contextReady ? 100 : Math.min(95, userMsgCount * 20);
+
   // Full page layout (ChatGPT-style)
   if (fullPage) {
     return (
       <div className="flex flex-col h-full">
+        {/* Top bar with understanding % */}
+        <div className="border-b border-border bg-background px-4 py-3">
+          <div className="max-w-2xl mx-auto flex items-center gap-3">
+            <Brain className="h-4 w-4 text-primary shrink-0" />
+            <div className="flex-1 space-y-1">
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-medium text-muted-foreground">Business Understanding</span>
+                <span className="text-xs font-mono text-primary">{understanding}%</span>
+              </div>
+              <Progress value={understanding} className="h-1.5" />
+            </div>
+          </div>
+        </div>
+
         {/* Messages area */}
         <div className="flex-1 overflow-y-auto">
           <div className="max-w-2xl mx-auto px-4 py-6 space-y-6">
@@ -161,8 +180,8 @@ export function StepBusinessContext({ data, onUpdate, onFinish, isSubmitting, in
           </div>
         </div>
 
-        {/* Input area pinned to bottom */}
-        <div className="border-t border-border bg-background p-4">
+        {/* Input area at bottom */}
+        <div className="border-t border-border bg-background px-4 py-3">
           <div className="max-w-2xl mx-auto">
             {contextReady ? (
               <div className="flex items-center justify-center gap-3">
@@ -175,7 +194,7 @@ export function StepBusinessContext({ data, onUpdate, onFinish, isSubmitting, in
               <div className="flex gap-2 items-center">
                 <Input
                   className="rounded-full px-4 h-11"
-                  placeholder="Ask anything..."
+                  placeholder="Tell us about your business..."
                   value={input}
                   onChange={(e) => setInput(e.target.value)}
                   onKeyDown={(e) => e.key === "Enter" && !e.shiftKey && send()}
