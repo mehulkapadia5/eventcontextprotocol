@@ -82,29 +82,65 @@ Guidelines:
 - Be practical and actionable
 - If a query returns no data, say so honestly`;
 
-// Tool definition for SQL execution
-const QUERY_TOOL = {
-  type: "function",
-  function: {
-    name: "query_events",
-    description: "Execute a read-only SQL query against the user's event database. Only SELECT statements allowed.",
-    parameters: {
-      type: "object",
-      properties: {
-        sql: {
-          type: "string",
-          description: "A PostgreSQL SELECT query to run against the events/projects tables",
-        },
-        explanation: {
-          type: "string",
-          description: "Brief explanation of what this query does (shown to user)",
-        },
-      },
-      required: ["sql", "explanation"],
-      additionalProperties: false,
-    },
-  },
-};
+// Provider routing helpers
+interface LlmConfig {
+  provider?: string;
+  model?: string;
+  openai_key?: string;
+  anthropic_key?: string;
+  google_key?: string;
+}
+
+function getAIEndpoint(config?: LlmConfig): { url: string; apiKey: string; model: string; isAnthropic: boolean } {
+  if (config?.provider && config.provider !== "default") {
+    switch (config.provider) {
+      case "openai":
+        if (config.openai_key) return { url: "https://api.openai.com/v1/chat/completions", apiKey: config.openai_key, model: config.model || "gpt-4o-mini", isAnthropic: false };
+        break;
+      case "anthropic":
+        if (config.anthropic_key) return { url: "https://api.anthropic.com/v1/messages", apiKey: config.anthropic_key, model: config.model || "claude-sonnet-4-20250514", isAnthropic: true };
+        break;
+      case "google":
+        if (config.google_key) return { url: "https://generativelanguage.googleapis.com/v1beta/openai/chat/completions", apiKey: config.google_key, model: config.model || "gemini-2.5-flash", isAnthropic: false };
+        break;
+    }
+  }
+  return { url: "https://ai.gateway.lovable.dev/v1/chat/completions", apiKey: Deno.env.get("LOVABLE_API_KEY") || "", model: "google/gemini-3-flash-preview", isAnthropic: false };
+}
+
+async function callAIWithTools(endpoint: ReturnType<typeof getAIEndpoint>, messages: any[], tools?: any[], stream = false) {
+  if (endpoint.isAnthropic) {
+    const systemMsg = messages.find((m: any) => m.role === "system");
+    const nonSystemMsgs = messages.filter((m: any) => m.role !== "system");
+    const body: any = {
+      model: endpoint.model,
+      max_tokens: 4096,
+      system: systemMsg?.content || "",
+      messages: nonSystemMsgs,
+      stream,
+    };
+    if (tools && !stream) {
+      body.tools = tools.map((t: any) => ({
+        name: t.function.name,
+        description: t.function.description,
+        input_schema: t.function.parameters,
+      }));
+    }
+    return fetch(endpoint.url, {
+      method: "POST",
+      headers: { "x-api-key": endpoint.apiKey, "anthropic-version": "2023-06-01", "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+    });
+  }
+
+  const body: any = { model: endpoint.model, messages, stream };
+  if (tools && !stream) { body.tools = tools; }
+  return fetch(endpoint.url, {
+    method: "POST",
+    headers: { Authorization: `Bearer ${endpoint.apiKey}`, "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  });
+}
 
 async function executeQuery(supabase: any, sql: string): Promise<{ data: any; error: string | null }> {
   try {
@@ -121,8 +157,6 @@ serve(async (req) => {
 
   try {
     const { messages, business_context, repo_context } = await req.json();
-    const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
-    if (!LOVABLE_API_KEY) throw new Error("LOVABLE_API_KEY is not configured");
 
     // Build system prompt
     let systemPrompt = SYSTEM_PROMPT + "\n" + SCHEMA_CONTEXT;
@@ -140,8 +174,9 @@ serve(async (req) => {
       systemPrompt += `\n\n## CODEBASE CONTEXT\n${repo_context.slice(0, 6000)}`;
     }
 
-    // Set up authenticated supabase client
+    // Set up authenticated supabase client & get user LLM config
     let supabase: any = null;
+    let llmConfig: LlmConfig | undefined;
     const authHeader = req.headers.get("Authorization");
     if (authHeader) {
       const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
@@ -149,25 +184,25 @@ serve(async (req) => {
       supabase = createClient(supabaseUrl, supabaseKey, {
         global: { headers: { Authorization: authHeader } },
       });
+      try {
+        const { data: { user } } = await supabase.auth.getUser();
+        if (user) {
+          const { data: profile } = await supabase.from("profiles").select("onboarding_data").eq("user_id", user.id).single();
+          llmConfig = (profile?.onboarding_data as any)?.llm_config;
+        }
+      } catch { /* proceed without config */ }
     }
 
+    const endpoint = getAIEndpoint(llmConfig);
+    if (!endpoint.apiKey) throw new Error("No API key configured");
+
     // PASS 1: Non-streaming call with tool to let AI decide if it needs SQL
-    const pass1Response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${LOVABLE_API_KEY}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        model: "google/gemini-3-flash-preview",
-        messages: [
-          { role: "system", content: systemPrompt },
-          ...messages,
-        ],
-        tools: [QUERY_TOOL],
-        stream: false,
-      }),
-    });
+    const pass1Response = await callAIWithTools(
+      endpoint,
+      [{ role: "system", content: systemPrompt }, ...messages],
+      endpoint.isAnthropic ? undefined : [QUERY_TOOL],
+      false
+    );
 
     if (!pass1Response.ok) {
       const status = pass1Response.status;
@@ -236,18 +271,7 @@ serve(async (req) => {
     }
 
     // PASS 2: Stream the final response
-    const pass2Response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${LOVABLE_API_KEY}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        model: "google/gemini-3-flash-preview",
-        messages: pass2Messages,
-        stream: true,
-      }),
-    });
+    const pass2Response = await callAIWithTools(endpoint, pass2Messages, undefined, true);
 
     if (!pass2Response.ok) {
       const t = await pass2Response.text();
@@ -255,6 +279,38 @@ serve(async (req) => {
       return new Response(JSON.stringify({ error: "AI service error" }), {
         status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
+    }
+
+    // For Anthropic, transform SSE format
+    if (endpoint.isAnthropic) {
+      const reader = pass2Response.body!.getReader();
+      const decoder = new TextDecoder();
+      const encoder = new TextEncoder();
+      const stream = new ReadableStream({
+        async start(controller) {
+          let buffer = "";
+          try {
+            while (true) {
+              const { done, value } = await reader.read();
+              if (done) { controller.enqueue(encoder.encode("data: [DONE]\n\n")); controller.close(); break; }
+              buffer += decoder.decode(value, { stream: true });
+              let idx;
+              while ((idx = buffer.indexOf("\n")) !== -1) {
+                const line = buffer.slice(0, idx).trim();
+                buffer = buffer.slice(idx + 1);
+                if (!line.startsWith("data: ")) continue;
+                try {
+                  const parsed = JSON.parse(line.slice(6));
+                  if (parsed.type === "content_block_delta" && parsed.delta?.text) {
+                    controller.enqueue(encoder.encode(`data: ${JSON.stringify({ choices: [{ index: 0, delta: { content: parsed.delta.text } }] })}\n\n`));
+                  }
+                } catch { /* skip */ }
+              }
+            }
+          } catch (e) { controller.error(e); }
+        },
+      });
+      return new Response(stream, { headers: { ...corsHeaders, "Content-Type": "text/event-stream" } });
     }
 
     return new Response(pass2Response.body, {

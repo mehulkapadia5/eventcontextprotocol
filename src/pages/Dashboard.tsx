@@ -2,12 +2,12 @@ import { Routes, Route, NavLink } from "react-router-dom";
 import { useAuth } from "@/hooks/use-auth";
 import { useAdmin } from "@/hooks/use-admin";
 import { Button } from "@/components/ui/button";
-import { Activity, LayoutDashboard, LogOut, MessageSquare, Search, FileText, Shield } from "lucide-react";
+import { Activity, LayoutDashboard, LogOut, MessageSquare, Search, FileText, Shield, Settings } from "lucide-react";
 import { DashboardOverview } from "@/components/dashboard/DashboardOverview";
 import { EventsExplorer } from "@/components/dashboard/EventsExplorer";
 import { ChatPage } from "@/components/dashboard/ChatPage";
 import { ContextPage } from "@/components/dashboard/ContextPage";
-
+import { SettingsPage } from "@/components/dashboard/SettingsPage";
 export default function Dashboard() {
   const { signOut } = useAuth();
   const { isAdmin } = useAdmin();
@@ -40,6 +40,10 @@ export default function Dashboard() {
           <FileText className="h-4 w-4" />
           Context Memory
         </NavLink>
+        <NavLink to="/dashboard/settings" className={linkClass}>
+          <Settings className="h-4 w-4" />
+          Settings
+        </NavLink>
         <div className="mt-auto space-y-1">
           {isAdmin && (
             <NavLink to="/admin" className={linkClass}>
@@ -60,6 +64,7 @@ export default function Dashboard() {
           <Route path="events" element={<EventsExplorer />} />
           <Route path="chat" element={<ChatPage />} />
           <Route path="context" element={<ContextPage />} />
+          <Route path="settings" element={<SettingsPage />} />
         </Routes>
       </main>
     </div>
