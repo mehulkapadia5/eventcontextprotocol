@@ -208,7 +208,11 @@ export function OnboardingCards() {
           ) : (
             <>
               <DialogHeader>
-                <DialogTitle>Connect Analytics</DialogTitle>
+                <DialogTitle className="flex items-center gap-2">
+                  <img src={posthogLogo} alt="PostHog" className="h-5 w-5" />
+                  <img src={mixpanelLogo} alt="Mixpanel" className="h-5 w-5" />
+                  Connect Analytics
+                </DialogTitle>
                 <DialogDescription>Connect one of the following analytics platforms.</DialogDescription>
               </DialogHeader>
               <div className="space-y-4 pt-2">
@@ -264,7 +268,10 @@ export function OnboardingCards() {
           ) : (
             <>
               <DialogHeader>
-                <DialogTitle>Connect Codebase</DialogTitle>
+                <DialogTitle className="flex items-center gap-2">
+                  <img src={githubLogo} alt="GitHub" className="h-5 w-5" />
+                  Connect Codebase
+                </DialogTitle>
                 <DialogDescription>Link your GitHub repository for code-aware insights.</DialogDescription>
               </DialogHeader>
               <div className="space-y-4 pt-2">
