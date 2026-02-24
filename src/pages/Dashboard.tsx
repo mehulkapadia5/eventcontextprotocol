@@ -1,42 +1,13 @@
-import { useState, useEffect } from "react";
 import { Routes, Route, NavLink, useNavigate } from "react-router-dom";
 import { useAuth } from "@/hooks/use-auth";
-import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Activity, BarChart3, FolderOpen, LayoutDashboard, LogOut, Search } from "lucide-react";
 import { DashboardOverview } from "@/components/dashboard/DashboardOverview";
 import { EventsExplorer } from "@/components/dashboard/EventsExplorer";
 import { ProjectsPage } from "@/components/dashboard/ProjectsPage";
-import { OnboardingWizard } from "@/components/onboarding/OnboardingWizard";
 
 export default function Dashboard() {
-  const { session, signOut } = useAuth();
-  const [onboardingCompleted, setOnboardingCompleted] = useState<boolean | null>(null);
-
-  useEffect(() => {
-    if (!session?.user?.id) return;
-    supabase
-      .from("profiles")
-      .select("onboarding_completed")
-      .eq("user_id", session.user.id)
-      .single()
-      .then(({ data }) => {
-        setOnboardingCompleted((data as any)?.onboarding_completed ?? false);
-      });
-  }, [session?.user?.id]);
-
-  if (onboardingCompleted === null) {
-    return <div className="min-h-screen bg-background" />;
-  }
-
-  if (onboardingCompleted === false && session?.user?.id) {
-    return (
-      <OnboardingWizard
-        userId={session.user.id}
-        onComplete={() => setOnboardingCompleted(true)}
-      />
-    );
-  }
+  const { signOut } = useAuth();
 
   const linkClass = ({ isActive }: { isActive: boolean }) =>
     `flex items-center gap-2 px-3 py-2 text-sm rounded-md transition-colors ${
