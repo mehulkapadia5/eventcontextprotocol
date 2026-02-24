@@ -17,7 +17,15 @@ import { useAuth } from "@/hooks/use-auth";
 import { toast } from "sonner";
 
 interface OnboardingData {
-  analytics?: { posthog_key?: string; mixpanel_key?: string };
+  analytics?: {
+    posthog_key?: string;
+    mixpanel_key?: string;
+    posthog_personal_key?: string;
+    posthog_project_id?: string;
+    posthog_host?: string;
+    mixpanel_secret?: string;
+    mixpanel_project_id?: string;
+  };
   codebase?: { github_url?: string };
   business?: { product_description?: string; audience?: string; goals?: string; [key: string]: string | undefined };
   project_created?: boolean;
@@ -34,6 +42,11 @@ export function OnboardingCards() {
 
   const [posthogKey, setPosthogKey] = useState("");
   const [mixpanelKey, setMixpanelKey] = useState("");
+  const [posthogPersonalKey, setPosthogPersonalKey] = useState("");
+  const [posthogProjectId, setPosthogProjectId] = useState("");
+  const [posthogHost, setPosthogHost] = useState("https://us.i.posthog.com");
+  const [mixpanelSecret, setMixpanelSecret] = useState("");
+  const [mixpanelProjectId, setMixpanelProjectId] = useState("");
   const [githubUrl, setGithubUrl] = useState("");
   const [newProjectName, setNewProjectName] = useState("");
   const [creatingProject, setCreatingProject] = useState(false);
@@ -62,6 +75,11 @@ export function OnboardingCards() {
       setData(od);
       setPosthogKey(od.analytics?.posthog_key || "");
       setMixpanelKey(od.analytics?.mixpanel_key || "");
+      setPosthogPersonalKey(od.analytics?.posthog_personal_key || "");
+      setPosthogProjectId(od.analytics?.posthog_project_id || "");
+      setPosthogHost(od.analytics?.posthog_host || "https://us.i.posthog.com");
+      setMixpanelSecret(od.analytics?.mixpanel_secret || "");
+      setMixpanelProjectId(od.analytics?.mixpanel_project_id || "");
       setGithubUrl(od.codebase?.github_url || "");
     }
     setLoading(false);
@@ -125,7 +143,7 @@ export function OnboardingCards() {
     }
   };
 
-  const analyticsConnected = !!(data.analytics?.posthog_key || data.analytics?.mixpanel_key);
+  const analyticsConnected = !!(data.analytics?.posthog_personal_key || data.analytics?.mixpanel_secret || data.analytics?.posthog_key || data.analytics?.mixpanel_key);
   const codebaseConnected = !!data.codebase?.github_url;
   const businessDone = !!data.business?.product_description;
 
@@ -215,19 +233,46 @@ export function OnboardingCards() {
                 </DialogTitle>
                 <DialogDescription>Connect one of the following analytics platforms.</DialogDescription>
               </DialogHeader>
-              <div className="space-y-4 pt-2">
-                <div className="space-y-2">
-                  <Label className="flex items-center justify-between">
-                    PostHog API Key
-                    <a href="https://us.posthog.com/settings/project#variables" target="_blank" rel="noopener noreferrer" className="text-xs text-primary hover:underline font-normal">Find your key →</a>
-                  </Label>
-                  <Input placeholder="phc_..." value={posthogKey} onChange={(e) => setPosthogKey(e.target.value)} />
+              <div className="space-y-4 pt-2 max-h-[60vh] overflow-y-auto">
+                <div className="space-y-3 border border-border rounded-lg p-4">
+                  <div className="flex items-center gap-2 mb-2">
+                    <img src={posthogLogo} alt="PostHog" className="h-4 w-4" />
+                    <span className="font-medium text-sm">PostHog</span>
+                  </div>
+                  <div className="space-y-2">
+                    <Label className="flex items-center justify-between">
+                      Personal API Key <span className="text-destructive">*</span>
+                      <a href="https://us.posthog.com/settings/user-api-keys" target="_blank" rel="noopener noreferrer" className="text-xs text-primary hover:underline font-normal">Create key →</a>
+                    </Label>
+                    <Input placeholder="phx_..." value={posthogPersonalKey} onChange={(e) => setPosthogPersonalKey(e.target.value)} />
+                    <p className="text-xs text-muted-foreground">Required to read events. Found in Personal API Keys settings.</p>
+                  </div>
+                  <div className="space-y-2">
+                    <Label className="flex items-center justify-between">
+                      Project ID <span className="text-destructive">*</span>
+                      <a href="https://us.posthog.com/settings/project#variables" target="_blank" rel="noopener noreferrer" className="text-xs text-primary hover:underline font-normal">Find ID →</a>
+                    </Label>
+                    <Input placeholder="12345" value={posthogProjectId} onChange={(e) => setPosthogProjectId(e.target.value)} />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Host (optional)</Label>
+                    <Input placeholder="https://us.i.posthog.com" value={posthogHost} onChange={(e) => setPosthogHost(e.target.value)} />
+                    <p className="text-xs text-muted-foreground">Use https://eu.i.posthog.com for EU cloud.</p>
+                  </div>
                   <Button
                     className="w-full"
-                    disabled={!posthogKey || saving}
-                    onClick={() => saveData({ ...data, analytics: { posthog_key: posthogKey } }, "posthog")}
+                    disabled={!posthogPersonalKey || !posthogProjectId || saving}
+                    onClick={() => saveData({
+                      ...data,
+                      analytics: {
+                        ...data.analytics,
+                        posthog_personal_key: posthogPersonalKey,
+                        posthog_project_id: posthogProjectId,
+                        posthog_host: posthogHost,
+                      },
+                    }, "posthog")}
                   >
-                    {saving ? <><Loader2 className="h-4 w-4 animate-spin mr-2" /> Verifying...</> : "Connect PostHog"}
+                    {saving ? <><Loader2 className="h-4 w-4 animate-spin mr-2" /> Saving...</> : "Connect PostHog"}
                   </Button>
                 </div>
 
@@ -240,18 +285,38 @@ export function OnboardingCards() {
                   </div>
                 </div>
 
-                <div className="space-y-2">
-                  <Label className="flex items-center justify-between">
-                    Mixpanel Project Token
-                    <a href="https://mixpanel.com/settings/project#tokens" target="_blank" rel="noopener noreferrer" className="text-xs text-primary hover:underline font-normal">Find your token →</a>
-                  </Label>
-                  <Input placeholder="Token..." value={mixpanelKey} onChange={(e) => setMixpanelKey(e.target.value)} />
+                <div className="space-y-3 border border-border rounded-lg p-4">
+                  <div className="flex items-center gap-2 mb-2">
+                    <img src={mixpanelLogo} alt="Mixpanel" className="h-4 w-4" />
+                    <span className="font-medium text-sm">Mixpanel</span>
+                  </div>
+                  <div className="space-y-2">
+                    <Label className="flex items-center justify-between">
+                      API Secret <span className="text-destructive">*</span>
+                      <a href="https://mixpanel.com/settings/project#tokens" target="_blank" rel="noopener noreferrer" className="text-xs text-primary hover:underline font-normal">Find secret →</a>
+                    </Label>
+                    <Input placeholder="API Secret..." value={mixpanelSecret} onChange={(e) => setMixpanelSecret(e.target.value)} />
+                    <p className="text-xs text-muted-foreground">Found in Project Settings → API Secret. Required to export events.</p>
+                  </div>
+                  <div className="space-y-2">
+                    <Label className="flex items-center justify-between">
+                      Project ID <span className="text-destructive">*</span>
+                    </Label>
+                    <Input placeholder="1234567" value={mixpanelProjectId} onChange={(e) => setMixpanelProjectId(e.target.value)} />
+                  </div>
                   <Button
                     className="w-full"
-                    disabled={!mixpanelKey || saving}
-                    onClick={() => saveData({ ...data, analytics: { mixpanel_key: mixpanelKey } }, "mixpanel")}
+                    disabled={!mixpanelSecret || !mixpanelProjectId || saving}
+                    onClick={() => saveData({
+                      ...data,
+                      analytics: {
+                        ...data.analytics,
+                        mixpanel_secret: mixpanelSecret,
+                        mixpanel_project_id: mixpanelProjectId,
+                      },
+                    }, "mixpanel")}
                   >
-                    {saving ? <><Loader2 className="h-4 w-4 animate-spin mr-2" /> Verifying...</> : "Connect Mixpanel"}
+                    {saving ? <><Loader2 className="h-4 w-4 animate-spin mr-2" /> Saving...</> : "Connect Mixpanel"}
                   </Button>
                 </div>
               </div>
