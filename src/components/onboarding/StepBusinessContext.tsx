@@ -190,17 +190,26 @@ export function StepBusinessContext({ data, onUpdate, onFinish, isSubmitting, in
         )}
       </div>
 
-      <div className="flex justify-center gap-3 pt-2">
-        {contextReady ? (
-          <Button onClick={onFinish} disabled={isSubmitting}>
-            {isSubmitting ? "Finishing..." : "Finish Setup"}
+      {!inline && (
+        <div className="flex justify-center gap-3 pt-2">
+          {contextReady ? (
+            <Button onClick={onFinish} disabled={isSubmitting}>
+              {isSubmitting ? "Finishing..." : "Finish Setup"}
+            </Button>
+          ) : (
+            <Button variant="ghost" onClick={onFinish} disabled={isSubmitting}>
+              Skip & Finish
+            </Button>
+          )}
+        </div>
+      )}
+      {inline && contextReady && (
+        <div className="pt-2">
+          <Button size="sm" onClick={onFinish} disabled={isSubmitting}>
+            {isSubmitting ? "Saving..." : "Save Context"}
           </Button>
-        ) : (
-          <Button variant="ghost" onClick={onFinish} disabled={isSubmitting}>
-            Skip & Finish
-          </Button>
-        )}
-      </div>
+        </div>
+      )}
     </div>
   );
 }
