@@ -5,6 +5,7 @@ import { Progress } from "@/components/ui/progress";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Briefcase, Send, Brain, Trash2, Database, CheckCircle2, Target, Users, Rocket, BarChart3, Sparkles } from "lucide-react";
 import ReactMarkdown from "react-markdown";
+import { ChatMessageContent } from "@/components/chat/ChatMessageContent";
 import { toast } from "sonner";
 
 function TypingDots() {
@@ -242,9 +243,7 @@ export function StepBusinessContext({ data, onUpdate, onFinish, onClearContext, 
                   }`}
                 >
                   {msg.role === "assistant" ? (
-                    <div className="prose prose-sm dark:prose-invert [&>p]:m-0">
-                      <ReactMarkdown>{msg.content}</ReactMarkdown>
-                    </div>
+                    <ChatMessageContent content={msg.content} />
                   ) : (
                     msg.content
                   )}
@@ -313,9 +312,7 @@ export function StepBusinessContext({ data, onUpdate, onFinish, onClearContext, 
                   }`}
                 >
                   {msg.role === "assistant" ? (
-                    <div className="prose prose-sm dark:prose-invert [&>p]:m-0">
-                      <ReactMarkdown>{msg.content}</ReactMarkdown>
-                    </div>
+                    <ChatMessageContent content={msg.content} />
                   ) : (
                     msg.content
                   )}
