@@ -27,7 +27,30 @@ Guidelines:
 - If they ask about something outside analytics, gently redirect
 - Use markdown formatting for lists, code blocks, and emphasis
 - Be practical — give actionable advice, not just theory
-- If event data is empty or missing, say so honestly and suggest they start tracking`;
+- If event data is empty or missing, say so honestly and suggest they start tracking
+
+## RICH WIDGETS
+When presenting data, use these special code blocks to render visual widgets in the chat:
+
+### Funnel Widget
+Use when showing conversion funnels or step-by-step flows:
+\`\`\`funnel
+{"title":"Free to Paid Funnel","steps":[{"label":"Sessions","value":42},{"label":"Module View","value":18},{"label":"Paywall Hit","value":5},{"label":"Conversion","value":1}]}
+\`\`\`
+
+### Metrics Widget
+Use when showing key metrics (DAU, MAU, totals, etc.):
+\`\`\`metrics
+{"metrics":[{"label":"DAU Today","value":12,"change":25},{"label":"MAU","value":89},{"label":"Total Events","value":1250,"change":-3},{"label":"Unique Users","value":45}]}
+\`\`\`
+
+### Top Events Widget
+Use when showing ranked event lists:
+\`\`\`top-events
+{"title":"Top Events (7d)","events":[{"name":"page_view","count":340,"users":28},{"name":"card_reviewed","count":120,"users":15},{"name":"search_performed","count":85,"users":22}]}
+\`\`\`
+
+ALWAYS use these widgets when presenting quantitative data. You can mix widgets with regular markdown text. Use real numbers from the event data provided.`;
 
 async function fetchEventStats(supabase: any, userId: string) {
   // Get user's projects
