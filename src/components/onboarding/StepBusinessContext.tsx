@@ -2,7 +2,6 @@ import { useState, useRef, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Briefcase, Send, Loader2 } from "lucide-react";
-import { ScrollArea } from "@/components/ui/scroll-area";
 import ReactMarkdown from "react-markdown";
 import { toast } from "sonner";
 
@@ -14,23 +13,22 @@ interface StepBusinessContextProps {
   onFinish: () => void;
   isSubmitting: boolean;
   inline?: boolean;
+  fullPage?: boolean;
 }
 
 const CHAT_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/business-context-chat`;
 
-export function StepBusinessContext({ data, onUpdate, onFinish, isSubmitting, inline }: StepBusinessContextProps) {
+export function StepBusinessContext({ data, onUpdate, onFinish, isSubmitting, inline, fullPage }: StepBusinessContextProps) {
   const [messages, setMessages] = useState<Msg[]>([
     { role: "assistant", content: "Hey! I'd love to learn about your product so we can tailor ECP for you. What does your product do?" },
   ]);
   const [input, setInput] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [contextReady, setContextReady] = useState(false);
-  const scrollRef = useRef<HTMLDivElement>(null);
+  const messagesEndRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    if (scrollRef.current) {
-      scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
-    }
+    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
 
   const send = async () => {
@@ -103,14 +101,12 @@ export function StepBusinessContext({ data, onUpdate, onFinish, isSubmitting, in
         }
       }
 
-      // Check if context is complete
       if (assistantSoFar.includes("CONTEXT_COMPLETE:")) {
         const jsonPart = assistantSoFar.split("CONTEXT_COMPLETE:")[1]?.trim();
         try {
           const parsed = JSON.parse(jsonPart || "{}");
           onUpdate(parsed);
           setContextReady(true);
-          // Clean the message to remove the JSON
           const cleanMsg = assistantSoFar.split("CONTEXT_COMPLETE:")[0].trim() ||
             "Great, I've got a good understanding of your business! You're all set.";
           setMessages((prev) =>
@@ -128,6 +124,75 @@ export function StepBusinessContext({ data, onUpdate, onFinish, isSubmitting, in
     }
   };
 
+  // Full page layout (ChatGPT-style)
+  if (fullPage) {
+    return (
+      <div className="flex flex-col h-full">
+        {/* Messages area */}
+        <div className="flex-1 overflow-y-auto">
+          <div className="max-w-2xl mx-auto px-4 py-6 space-y-6">
+            {messages.map((msg, i) => (
+              <div key={i} className={`flex ${msg.role === "user" ? "justify-end" : "justify-start"}`}>
+                <div
+                  className={`max-w-[85%] rounded-2xl px-4 py-3 text-sm ${
+                    msg.role === "user"
+                      ? "bg-primary text-primary-foreground"
+                      : "bg-muted text-foreground"
+                  }`}
+                >
+                  {msg.role === "assistant" ? (
+                    <div className="prose prose-sm dark:prose-invert [&>p]:m-0">
+                      <ReactMarkdown>{msg.content}</ReactMarkdown>
+                    </div>
+                  ) : (
+                    msg.content
+                  )}
+                </div>
+              </div>
+            ))}
+            {isLoading && messages[messages.length - 1]?.role === "user" && (
+              <div className="flex justify-start">
+                <div className="bg-muted rounded-2xl px-4 py-3">
+                  <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
+                </div>
+              </div>
+            )}
+            <div ref={messagesEndRef} />
+          </div>
+        </div>
+
+        {/* Input area pinned to bottom */}
+        <div className="border-t border-border bg-background p-4">
+          <div className="max-w-2xl mx-auto">
+            {contextReady ? (
+              <div className="flex items-center justify-center gap-3">
+                <p className="text-sm text-muted-foreground">Context captured!</p>
+                <Button onClick={onFinish} disabled={isSubmitting}>
+                  {isSubmitting ? "Saving..." : "Save Context"}
+                </Button>
+              </div>
+            ) : (
+              <div className="flex gap-2 items-center">
+                <Input
+                  className="rounded-full px-4 h-11"
+                  placeholder="Ask anything..."
+                  value={input}
+                  onChange={(e) => setInput(e.target.value)}
+                  onKeyDown={(e) => e.key === "Enter" && !e.shiftKey && send()}
+                  disabled={isLoading}
+                />
+                <Button size="icon" className="rounded-full h-11 w-11 shrink-0" onClick={send} disabled={isLoading || !input.trim()}>
+                  <Send className="h-4 w-4" />
+                </Button>
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // Compact / inline layout (for onboarding wizard or cards)
   return (
     <div className="space-y-4">
       {!inline && (
@@ -143,7 +208,7 @@ export function StepBusinessContext({ data, onUpdate, onFinish, isSubmitting, in
       )}
 
       <div className={`${inline ? "" : "max-w-lg mx-auto"} border border-border rounded-lg overflow-hidden bg-card`}>
-        <ScrollArea className="h-80 p-4" ref={scrollRef}>
+        <div className="h-80 overflow-y-auto p-4">
           <div className="space-y-4">
             {messages.map((msg, i) => (
               <div key={i} className={`flex ${msg.role === "user" ? "justify-end" : "justify-start"}`}>
@@ -171,8 +236,9 @@ export function StepBusinessContext({ data, onUpdate, onFinish, isSubmitting, in
                 </div>
               </div>
             )}
+            <div ref={messagesEndRef} />
           </div>
-        </ScrollArea>
+        </div>
 
         {!contextReady && (
           <div className="border-t border-border p-3 flex gap-2">

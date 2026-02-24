@@ -57,16 +57,13 @@ export function ChatPage() {
   if (loading) return <div className="flex-1" />;
 
   return (
-    <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold">Chat</h1>
-        <p className="text-muted-foreground text-sm">Tell our AI about your business so we can tailor your experience.</p>
-      </div>
+    <div className="flex flex-col h-[calc(100vh-4rem)]">
       <StepBusinessContext
         data={data.business || {}}
         onUpdate={(biz) => setData((prev) => ({ ...prev, business: biz }))}
         onFinish={handleFinish}
         isSubmitting={saving}
+        fullPage
       />
     </div>
   );
