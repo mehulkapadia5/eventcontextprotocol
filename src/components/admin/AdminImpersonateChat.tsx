@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { Users, MessageSquare, Save, RefreshCw, Pencil } from "lucide-react";
+import { Users, MessageSquare, Save, Pencil, Eye, Trash2 } from "lucide-react";
 import { StepBusinessContext } from "@/components/onboarding/StepBusinessContext";
 import { ContextMemoryView } from "@/components/dashboard/ContextMemoryView";
 
@@ -18,6 +18,8 @@ interface OnboardingData {
   business?: { product_description?: string; audience?: string; goals?: string; [key: string]: string | undefined };
 }
 
+type Mode = "view" | "edit" | "chat";
+
 export function AdminImpersonateChat() {
   const [selectedUserId, setSelectedUserId] = useState<string | null>(null);
   const [userData, setUserData] = useState<OnboardingData>({});
@@ -25,7 +27,7 @@ export function AdminImpersonateChat() {
   const [repoContext, setRepoContext] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [chatKey, setChatKey] = useState(0);
-  const [mode, setMode] = useState<"chat" | "edit">("chat");
+  const [mode, setMode] = useState<Mode>("view");
   const [editBiz, setEditBiz] = useState({ product_description: "", audience: "", goals: "" });
 
   const { data: users, isLoading } = useQuery({
@@ -38,6 +40,7 @@ export function AdminImpersonateChat() {
   });
 
   const selectedUser = users?.find((u) => u.user_id === selectedUserId);
+  const hasContext = !!(userData.business?.product_description || userData.business?.audience || userData.business?.goals);
 
   const loadUserData = useCallback(() => {
     if (!selectedUser) return;
@@ -51,6 +54,8 @@ export function AdminImpersonateChat() {
       audience: d.business?.audience || "",
       goals: d.business?.goals || "",
     });
+    // Default to view if context exists, otherwise chat
+    setMode(d.business?.product_description ? "view" : "chat");
     setChatKey((k) => k + 1);
   }, [selectedUser]);
 
@@ -70,9 +75,9 @@ export function AdminImpersonateChat() {
         .eq("user_id", selectedUserId);
       if (error) throw error;
       setUserData(updated);
-      toast.success("Context saved for user!");
-      setMode("chat");
-      setChatKey((k) => k + 1);
+      userDataRef.current = updated;
+      toast.success("Context saved!");
+      setMode("view");
     } catch {
       toast.error("Failed to save context.");
     } finally {
@@ -92,6 +97,7 @@ export function AdminImpersonateChat() {
       if (error) throw error;
       setUserData(latest);
       toast.success("Context saved!");
+      setMode("view");
     } catch {
       toast.error("Failed to save.");
     } finally {
@@ -109,8 +115,10 @@ export function AdminImpersonateChat() {
         .eq("user_id", selectedUserId);
       if (error) throw error;
       setUserData(updated);
+      userDataRef.current = updated;
       setChatKey((k) => k + 1);
-      toast.success("Context cleared for user.");
+      setMode("chat");
+      toast.success("Context cleared.");
     } catch {
       toast.error("Failed to clear context.");
     }
@@ -124,10 +132,10 @@ export function AdminImpersonateChat() {
         </h1>
       </div>
       <p className="text-sm text-muted-foreground">
-        Select a user to view/edit their context and test the AI chat as them.
+        Select a user to view their saved context, edit it, or test the AI chat as them.
       </p>
 
-      {/* User selector */}
+      {/* User selector + mode tabs */}
       <div className="flex items-center gap-3 flex-wrap">
         <Select value={selectedUserId || ""} onValueChange={(v) => setSelectedUserId(v)}>
           <SelectTrigger className="w-72">
@@ -144,16 +152,17 @@ export function AdminImpersonateChat() {
         {selectedUser && (
           <>
             <Badge variant={selectedUser.onboarding_completed ? "default" : "secondary"}>
-              {selectedUser.onboarding_completed ? "Context Complete" : "Incomplete"}
+              {selectedUser.onboarding_completed ? "Context Saved" : "No Context"}
             </Badge>
             <div className="flex gap-1">
               <Button
-                variant={mode === "chat" ? "default" : "outline"}
+                variant={mode === "view" ? "default" : "outline"}
                 size="sm"
-                onClick={() => setMode("chat")}
+                onClick={() => setMode("view")}
                 className="gap-1"
+                disabled={!hasContext}
               >
-                <MessageSquare className="h-3.5 w-3.5" /> Chat
+                <Eye className="h-3.5 w-3.5" /> View
               </Button>
               <Button
                 variant={mode === "edit" ? "default" : "outline"}
@@ -161,7 +170,15 @@ export function AdminImpersonateChat() {
                 onClick={() => setMode("edit")}
                 className="gap-1"
               >
-                <Pencil className="h-3.5 w-3.5" /> Edit Context
+                <Pencil className="h-3.5 w-3.5" /> Edit
+              </Button>
+              <Button
+                variant={mode === "chat" ? "default" : "outline"}
+                size="sm"
+                onClick={() => { setMode("chat"); setChatKey((k) => k + 1); }}
+                className="gap-1"
+              >
+                <MessageSquare className="h-3.5 w-3.5" /> Chat
               </Button>
             </div>
           </>
@@ -170,65 +187,82 @@ export function AdminImpersonateChat() {
 
       {isLoading && <div className="text-muted-foreground">Loading users...</div>}
 
-      {selectedUserId && selectedUser && mode === "edit" && (
+      {/* VIEW MODE — show saved context as readable doc */}
+      {selectedUserId && selectedUser && mode === "view" && (
         <div className="space-y-4">
-          {/* Current context view */}
-          {userData.business?.product_description && (
+          {hasContext ? (
             <Card>
-              <CardHeader className="pb-2">
-                <CardTitle className="text-sm">Current Saved Context</CardTitle>
+              <CardHeader className="pb-2 flex flex-row items-center justify-between">
+                <CardTitle className="text-sm">Saved Context</CardTitle>
+                <div className="flex gap-2">
+                  <Button variant="outline" size="sm" onClick={() => setMode("edit")} className="gap-1">
+                    <Pencil className="h-3.5 w-3.5" /> Edit
+                  </Button>
+                  <Button variant="ghost" size="sm" onClick={handleClearContext} className="gap-1 text-destructive hover:text-destructive">
+                    <Trash2 className="h-3.5 w-3.5" /> Clear
+                  </Button>
+                </div>
               </CardHeader>
               <CardContent>
                 <ContextMemoryView data={userData.business || {}} analytics={userData.analytics} codebase={userData.codebase} />
               </CardContent>
             </Card>
+          ) : (
+            <Card>
+              <CardContent className="py-12 text-center text-muted-foreground">
+                No context saved for this user yet. Use <strong>Chat</strong> to gather context or <strong>Edit</strong> to add it manually.
+              </CardContent>
+            </Card>
           )}
-
-          {/* Edit form */}
-          <Card>
-            <CardHeader className="pb-2">
-              <CardTitle className="text-sm">Edit Business Context</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-3">
-              <div>
-                <label className="text-xs font-medium text-muted-foreground">Product Description</label>
-                <Textarea
-                  value={editBiz.product_description}
-                  onChange={(e) => setEditBiz((p) => ({ ...p, product_description: e.target.value }))}
-                  rows={3}
-                  placeholder="What does this user's product do?"
-                />
-              </div>
-              <div>
-                <label className="text-xs font-medium text-muted-foreground">Target Audience</label>
-                <Input
-                  value={editBiz.audience}
-                  onChange={(e) => setEditBiz((p) => ({ ...p, audience: e.target.value }))}
-                  placeholder="Who are the users?"
-                />
-              </div>
-              <div>
-                <label className="text-xs font-medium text-muted-foreground">Goals</label>
-                <Textarea
-                  value={editBiz.goals}
-                  onChange={(e) => setEditBiz((p) => ({ ...p, goals: e.target.value }))}
-                  rows={2}
-                  placeholder="What are the business goals?"
-                />
-              </div>
-              <div className="flex gap-2">
-                <Button onClick={handleSaveContext} disabled={saving} className="gap-1">
-                  <Save className="h-3.5 w-3.5" /> {saving ? "Saving..." : "Save & Switch to Chat"}
-                </Button>
-                <Button variant="outline" onClick={handleClearContext}>
-                  Clear Context
-                </Button>
-              </div>
-            </CardContent>
-          </Card>
         </div>
       )}
 
+      {/* EDIT MODE */}
+      {selectedUserId && selectedUser && mode === "edit" && (
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm">Edit Business Context</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            <div>
+              <label className="text-xs font-medium text-muted-foreground">Product Description</label>
+              <Textarea
+                value={editBiz.product_description}
+                onChange={(e) => setEditBiz((p) => ({ ...p, product_description: e.target.value }))}
+                rows={3}
+                placeholder="What does this user's product do?"
+              />
+            </div>
+            <div>
+              <label className="text-xs font-medium text-muted-foreground">Target Audience</label>
+              <Input
+                value={editBiz.audience}
+                onChange={(e) => setEditBiz((p) => ({ ...p, audience: e.target.value }))}
+                placeholder="Who are the users?"
+              />
+            </div>
+            <div>
+              <label className="text-xs font-medium text-muted-foreground">Goals</label>
+              <Textarea
+                value={editBiz.goals}
+                onChange={(e) => setEditBiz((p) => ({ ...p, goals: e.target.value }))}
+                rows={2}
+                placeholder="What are the business goals?"
+              />
+            </div>
+            <div className="flex gap-2">
+              <Button onClick={handleSaveContext} disabled={saving} className="gap-1">
+                <Save className="h-3.5 w-3.5" /> {saving ? "Saving..." : "Save Context"}
+              </Button>
+              <Button variant="outline" onClick={() => setMode("view")} disabled={!hasContext}>
+                Cancel
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* CHAT MODE */}
       {selectedUserId && selectedUser && mode === "chat" && (
         <div className="flex flex-col h-[calc(100vh-16rem)] border border-border rounded-lg overflow-hidden">
           <StepBusinessContext
@@ -251,7 +285,7 @@ export function AdminImpersonateChat() {
       {!selectedUserId && !isLoading && (
         <Card>
           <CardContent className="py-12 text-center text-muted-foreground">
-            Select a user above to impersonate their chat experience and test AI responses.
+            Select a user above to view their saved context or test the AI chat as them.
           </CardContent>
         </Card>
       )}
