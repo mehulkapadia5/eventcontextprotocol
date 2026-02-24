@@ -1,13 +1,15 @@
 import { useState, useEffect, useCallback } from "react";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { useNavigate } from "react-router-dom";
+import { Card, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
-import { BarChart3, Code2, Briefcase, Check, ChevronDown, ChevronUp } from "lucide-react";
+import { Label } from "@/components/ui/label";
+import { BarChart3, Code2, Briefcase, Check, MessageSquare } from "lucide-react";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/use-auth";
 import { toast } from "sonner";
-import { StepBusinessContext } from "@/components/onboarding/StepBusinessContext";
 
 interface OnboardingData {
   analytics?: { posthog_key?: string; mixpanel_key?: string };
@@ -17,12 +19,12 @@ interface OnboardingData {
 
 export function OnboardingCards() {
   const { session } = useAuth();
+  const navigate = useNavigate();
   const [data, setData] = useState<OnboardingData>({});
   const [loading, setLoading] = useState(true);
-  const [expandedStep, setExpandedStep] = useState<number | null>(null);
+  const [openDialog, setOpenDialog] = useState<number | null>(null);
   const [saving, setSaving] = useState(false);
 
-  // Local input state
   const [posthogKey, setPosthogKey] = useState("");
   const [mixpanelKey, setMixpanelKey] = useState("");
   const [githubUrl, setGithubUrl] = useState("");
@@ -64,7 +66,7 @@ export function OnboardingCards() {
       if (error) throw error;
       setData(updated);
       toast.success("Saved!");
-      setExpandedStep(null);
+      setOpenDialog(null);
     } catch {
       toast.error("Failed to save.");
     } finally {
@@ -76,126 +78,115 @@ export function OnboardingCards() {
   const codebaseConnected = !!data.codebase?.github_url;
   const businessDone = !!data.business?.product_description;
 
-  // Hide if all 3 are done
   if (!loading && analyticsConnected && codebaseConnected && businessDone) return null;
   if (loading) return null;
 
   const steps = [
-    {
-      title: "Connect Analytics",
-      description: "Link PostHog or Mixpanel to import event data",
-      icon: BarChart3,
-      done: analyticsConnected,
-    },
-    {
-      title: "Connect Codebase",
-      description: "Link your GitHub repository for code-aware insights",
-      icon: Code2,
-      done: codebaseConnected,
-    },
-    {
-      title: "Business Context",
-      description: "Tell us about your product for tailored insights",
-      icon: Briefcase,
-      done: businessDone,
-    },
+    { title: "Connect Analytics", description: "Link PostHog or Mixpanel to import event data", icon: BarChart3, done: analyticsConnected },
+    { title: "Connect Codebase", description: "Link your GitHub repository for code-aware insights", icon: Code2, done: codebaseConnected },
+    { title: "Business Context", description: "Chat with AI to describe your product", icon: Briefcase, done: businessDone },
   ];
 
   return (
-    <div className="space-y-3">
-      <div className="flex items-center justify-between">
-        <h2 className="text-lg font-semibold">Get Started</h2>
-        <Badge variant="secondary" className="font-mono text-xs">
-          {steps.filter((s) => s.done).length}/{steps.length} complete
-        </Badge>
-      </div>
+    <>
+      <div className="space-y-3">
+        <div className="flex items-center justify-between">
+          <h2 className="text-lg font-semibold">Get Started</h2>
+          <Badge variant="secondary" className="font-mono text-xs">
+            {steps.filter((s) => s.done).length}/{steps.length} complete
+          </Badge>
+        </div>
 
-      <div className="grid gap-3 md:grid-cols-3">
-        {steps.map((step, i) => (
-          <Card
-            key={i}
-            className={`transition-all ${step.done ? "border-primary/40 opacity-75" : "cursor-pointer hover:border-primary/30"} ${expandedStep === i ? "md:col-span-3" : ""}`}
-          >
-            <CardHeader
-              className="pb-2 cursor-pointer"
-              onClick={() => !step.done && setExpandedStep(expandedStep === i ? null : i)}
+        <div className="grid gap-3 md:grid-cols-3">
+          {steps.map((step, i) => (
+            <Card
+              key={i}
+              className={`transition-all ${step.done ? "border-primary/40 opacity-75" : "cursor-pointer hover:border-primary/30"}`}
+              onClick={() => {
+                if (step.done) return;
+                if (i === 2) {
+                  navigate("/dashboard/chat");
+                } else {
+                  setOpenDialog(i);
+                }
+              }}
             >
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-3">
-                  <div className={`w-8 h-8 rounded-full flex items-center justify-center ${step.done ? "bg-primary/20" : "bg-muted"}`}>
-                    {step.done ? <Check className="h-4 w-4 text-primary" /> : <step.icon className="h-4 w-4 text-muted-foreground" />}
+              <CardHeader className="pb-4">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <div className={`w-8 h-8 rounded-full flex items-center justify-center ${step.done ? "bg-primary/20" : "bg-muted"}`}>
+                      {step.done ? <Check className="h-4 w-4 text-primary" /> : <step.icon className="h-4 w-4 text-muted-foreground" />}
+                    </div>
+                    <div>
+                      <CardTitle className="text-sm">{step.title}</CardTitle>
+                      <CardDescription className="text-xs">{step.description}</CardDescription>
+                    </div>
                   </div>
-                  <div>
-                    <CardTitle className="text-sm">{step.title}</CardTitle>
-                    <CardDescription className="text-xs">{step.description}</CardDescription>
-                  </div>
+                  {!step.done && (
+                    i === 2
+                      ? <MessageSquare className="h-4 w-4 text-muted-foreground" />
+                      : <Button variant="outline" size="sm" onClick={(e) => { e.stopPropagation(); setOpenDialog(i); }}>Connect</Button>
+                  )}
                 </div>
-                {!step.done && (
-                  expandedStep === i ? <ChevronUp className="h-4 w-4 text-muted-foreground" /> : <ChevronDown className="h-4 w-4 text-muted-foreground" />
-                )}
-              </div>
-            </CardHeader>
-
-            {expandedStep === i && !step.done && (
-              <CardContent className="pt-0">
-                {/* Step 0: Analytics */}
-                {i === 0 && (
-                  <div className="space-y-3 pt-2">
-                    <div className="space-y-2">
-                      <label className="text-xs font-medium text-muted-foreground">PostHog API Key</label>
-                      <Input placeholder="phc_..." value={posthogKey} onChange={(e) => setPosthogKey(e.target.value)} />
-                    </div>
-                    <div className="space-y-2">
-                      <label className="text-xs font-medium text-muted-foreground">Mixpanel Project Token</label>
-                      <Input placeholder="Token..." value={mixpanelKey} onChange={(e) => setMixpanelKey(e.target.value)} />
-                    </div>
-                    <Button
-                      size="sm"
-                      disabled={(!posthogKey && !mixpanelKey) || saving}
-                      onClick={() => saveData({ ...data, analytics: { posthog_key: posthogKey || undefined, mixpanel_key: mixpanelKey || undefined } })}
-                    >
-                      {saving ? "Saving..." : "Connect"}
-                    </Button>
-                  </div>
-                )}
-
-                {/* Step 1: Codebase */}
-                {i === 1 && (
-                  <div className="space-y-3 pt-2">
-                    <div className="space-y-2">
-                      <label className="text-xs font-medium text-muted-foreground">GitHub Repository URL</label>
-                      <Input placeholder="https://github.com/org/repo" value={githubUrl} onChange={(e) => setGithubUrl(e.target.value)} />
-                    </div>
-                    <Button
-                      size="sm"
-                      disabled={!githubUrl || saving}
-                      onClick={() => saveData({ ...data, codebase: { github_url: githubUrl } })}
-                    >
-                      {saving ? "Saving..." : "Connect"}
-                    </Button>
-                  </div>
-                )}
-
-                {/* Step 2: Business Context (AI Chat) */}
-                {i === 2 && (
-                  <div className="pt-2">
-                    <StepBusinessContext
-                      data={data.business || {}}
-                      onUpdate={(biz) => {
-                        const updated = { ...data, business: biz };
-                        setData(updated);
-                      }}
-                      onFinish={() => saveData({ ...data, business: data.business })}
-                      isSubmitting={saving}
-                      inline
-                    />
-                  </div>
-                )}
-              </CardContent>
-            )}
-          </Card>
-        ))}
+              </CardHeader>
+            </Card>
+          ))}
+        </div>
       </div>
-    </div>
+
+      {/* Analytics Dialog */}
+      <Dialog open={openDialog === 0} onOpenChange={(open) => !open && setOpenDialog(null)}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Connect Analytics</DialogTitle>
+            <DialogDescription>Enter your PostHog or Mixpanel credentials to import event data.</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 pt-2">
+            <div className="space-y-2">
+              <Label>PostHog API Key</Label>
+              <Input placeholder="phc_..." value={posthogKey} onChange={(e) => setPosthogKey(e.target.value)} />
+            </div>
+            <div className="space-y-2">
+              <Label>Mixpanel Project Token</Label>
+              <Input placeholder="Token..." value={mixpanelKey} onChange={(e) => setMixpanelKey(e.target.value)} />
+            </div>
+            <div className="flex justify-end gap-2">
+              <Button variant="ghost" onClick={() => setOpenDialog(null)}>Cancel</Button>
+              <Button
+                disabled={(!posthogKey && !mixpanelKey) || saving}
+                onClick={() => saveData({ ...data, analytics: { posthog_key: posthogKey || undefined, mixpanel_key: mixpanelKey || undefined } })}
+              >
+                {saving ? "Saving..." : "Connect"}
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Codebase Dialog */}
+      <Dialog open={openDialog === 1} onOpenChange={(open) => !open && setOpenDialog(null)}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Connect Codebase</DialogTitle>
+            <DialogDescription>Link your GitHub repository for code-aware insights.</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 pt-2">
+            <div className="space-y-2">
+              <Label>GitHub Repository URL</Label>
+              <Input placeholder="https://github.com/org/repo" value={githubUrl} onChange={(e) => setGithubUrl(e.target.value)} />
+            </div>
+            <div className="flex justify-end gap-2">
+              <Button variant="ghost" onClick={() => setOpenDialog(null)}>Cancel</Button>
+              <Button
+                disabled={!githubUrl || saving}
+                onClick={() => saveData({ ...data, codebase: { github_url: githubUrl } })}
+              >
+                {saving ? "Saving..." : "Connect"}
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+    </>
   );
 }
