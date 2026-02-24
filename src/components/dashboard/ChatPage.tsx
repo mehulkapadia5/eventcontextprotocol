@@ -57,7 +57,7 @@ export function ChatPage() {
   if (loading) return <div className="flex-1" />;
 
   return (
-    <div className="flex flex-col h-[calc(100vh-4rem)]">
+    <div className="flex flex-col h-[calc(100vh-3rem)] -m-6 md:-m-8">
       <StepBusinessContext
         data={data.business || {}}
         onUpdate={(biz) => setData((prev) => ({ ...prev, business: biz }))}
