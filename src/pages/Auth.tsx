@@ -11,6 +11,7 @@ import { Separator } from "@/components/ui/separator";
 import { Activity } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { Link } from "react-router-dom";
+import { GoogleIcon } from "@/components/icons/GoogleIcon";
 
 export default function Auth() {
   const [searchParams] = useSearchParams();
@@ -105,6 +106,7 @@ export default function Auth() {
                   <Separator className="flex-1" />
                 </div>
                 <Button variant="outline" className="w-full" onClick={handleGoogleSignIn}>
+                  <GoogleIcon className="h-4 w-4 mr-2" />
                   Continue with Google
                 </Button>
               </TabsContent>
@@ -130,6 +132,7 @@ export default function Auth() {
                   <Separator className="flex-1" />
                 </div>
                 <Button variant="outline" className="w-full" onClick={handleGoogleSignIn}>
+                  <GoogleIcon className="h-4 w-4 mr-2" />
                   Continue with Google
                 </Button>
               </TabsContent>
