@@ -19,7 +19,7 @@ export default function Dashboard() {
 
   return (
     <div className="flex min-h-screen bg-background">
-      <aside className="hidden md:flex w-64 flex-col border-r border-border p-4 gap-2">
+      <aside className="hidden md:flex w-64 flex-col border-r border-border p-4 gap-2 h-screen sticky top-0">
         <div className="flex items-center gap-2 px-3 py-2 mb-4">
           <Activity className="h-5 w-5 text-primary" />
           <span className="font-mono font-bold text-lg">ECP</span>
