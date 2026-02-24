@@ -5,7 +5,8 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Label } from "@/components/ui/label";
-import { Activity, GitBranch, Sparkles, Check, MessageSquare } from "lucide-react";
+import { Activity, GitBranch, Sparkles, Check, CheckCircle2, MessageSquare, Loader2 } from "lucide-react";
+import { Separator } from "@/components/ui/separator";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/use-auth";
@@ -24,6 +25,7 @@ export function OnboardingCards() {
   const [loading, setLoading] = useState(true);
   const [openDialog, setOpenDialog] = useState<number | null>(null);
   const [saving, setSaving] = useState(false);
+  const [connected, setConnected] = useState<"posthog" | "mixpanel" | "github" | null>(null);
 
   const [posthogKey, setPosthogKey] = useState("");
   const [mixpanelKey, setMixpanelKey] = useState("");
@@ -48,7 +50,7 @@ export function OnboardingCards() {
 
   useEffect(() => { fetchProfile(); }, [fetchProfile]);
 
-  const saveData = async (updated: OnboardingData) => {
+  const saveData = async (updated: OnboardingData, connectedType?: "posthog" | "mixpanel" | "github") => {
     if (!session?.user?.id) return;
     setSaving(true);
     try {
@@ -65,8 +67,15 @@ export function OnboardingCards() {
         .eq("user_id", session.user.id);
       if (error) throw error;
       setData(updated);
-      toast.success("Saved!");
-      setOpenDialog(null);
+      if (connectedType) {
+        setConnected(connectedType);
+        setTimeout(() => {
+          setConnected(null);
+          setOpenDialog(null);
+        }, 1500);
+      } else {
+        setOpenDialog(null);
+      }
     } catch {
       toast.error("Failed to save.");
     } finally {
@@ -135,56 +144,95 @@ export function OnboardingCards() {
       </div>
 
       {/* Analytics Dialog */}
-      <Dialog open={openDialog === 0} onOpenChange={(open) => !open && setOpenDialog(null)}>
+      <Dialog open={openDialog === 0} onOpenChange={(open) => { if (!open) { setOpenDialog(null); setConnected(null); } }}>
         <DialogContent className="sm:max-w-md">
-          <DialogHeader>
-            <DialogTitle>Connect Analytics</DialogTitle>
-            <DialogDescription>Enter your PostHog or Mixpanel credentials to import event data.</DialogDescription>
-          </DialogHeader>
-          <div className="space-y-4 pt-2">
-            <div className="space-y-2">
-              <Label>PostHog API Key</Label>
-              <Input placeholder="phc_..." value={posthogKey} onChange={(e) => setPosthogKey(e.target.value)} />
+          {connected === "posthog" || connected === "mixpanel" ? (
+            <div className="flex flex-col items-center gap-3 py-8">
+              <div className="w-12 h-12 rounded-full bg-primary/20 flex items-center justify-center">
+                <CheckCircle2 className="h-6 w-6 text-primary" />
+              </div>
+              <p className="font-semibold text-lg">
+                {connected === "posthog" ? "PostHog" : "Mixpanel"} Connected!
+              </p>
+              <p className="text-sm text-muted-foreground">Your analytics data will be synced shortly.</p>
             </div>
-            <div className="space-y-2">
-              <Label>Mixpanel Project Token</Label>
-              <Input placeholder="Token..." value={mixpanelKey} onChange={(e) => setMixpanelKey(e.target.value)} />
-            </div>
-            <div className="flex justify-end gap-2">
-              <Button variant="ghost" onClick={() => setOpenDialog(null)}>Cancel</Button>
-              <Button
-                disabled={(!posthogKey && !mixpanelKey) || saving}
-                onClick={() => saveData({ ...data, analytics: { posthog_key: posthogKey || undefined, mixpanel_key: mixpanelKey || undefined } })}
-              >
-                {saving ? "Saving..." : "Connect"}
-              </Button>
-            </div>
-          </div>
+          ) : (
+            <>
+              <DialogHeader>
+                <DialogTitle>Connect Analytics</DialogTitle>
+                <DialogDescription>Connect one of the following analytics platforms.</DialogDescription>
+              </DialogHeader>
+              <div className="space-y-4 pt-2">
+                <div className="space-y-2">
+                  <Label>PostHog API Key</Label>
+                  <Input placeholder="phc_..." value={posthogKey} onChange={(e) => setPosthogKey(e.target.value)} />
+                  <Button
+                    className="w-full"
+                    disabled={!posthogKey || saving}
+                    onClick={() => saveData({ ...data, analytics: { posthog_key: posthogKey } }, "posthog")}
+                  >
+                    {saving ? <><Loader2 className="h-4 w-4 animate-spin mr-2" /> Verifying...</> : "Connect PostHog"}
+                  </Button>
+                </div>
+
+                <div className="relative">
+                  <div className="absolute inset-0 flex items-center">
+                    <Separator className="w-full" />
+                  </div>
+                  <div className="relative flex justify-center text-xs uppercase">
+                    <span className="bg-background px-2 text-muted-foreground">or</span>
+                  </div>
+                </div>
+
+                <div className="space-y-2">
+                  <Label>Mixpanel Project Token</Label>
+                  <Input placeholder="Token..." value={mixpanelKey} onChange={(e) => setMixpanelKey(e.target.value)} />
+                  <Button
+                    className="w-full"
+                    disabled={!mixpanelKey || saving}
+                    onClick={() => saveData({ ...data, analytics: { mixpanel_key: mixpanelKey } }, "mixpanel")}
+                  >
+                    {saving ? <><Loader2 className="h-4 w-4 animate-spin mr-2" /> Verifying...</> : "Connect Mixpanel"}
+                  </Button>
+                </div>
+              </div>
+            </>
+          )}
         </DialogContent>
       </Dialog>
 
       {/* Codebase Dialog */}
-      <Dialog open={openDialog === 1} onOpenChange={(open) => !open && setOpenDialog(null)}>
+      <Dialog open={openDialog === 1} onOpenChange={(open) => { if (!open) { setOpenDialog(null); setConnected(null); } }}>
         <DialogContent className="sm:max-w-md">
-          <DialogHeader>
-            <DialogTitle>Connect Codebase</DialogTitle>
-            <DialogDescription>Link your GitHub repository for code-aware insights.</DialogDescription>
-          </DialogHeader>
-          <div className="space-y-4 pt-2">
-            <div className="space-y-2">
-              <Label>GitHub Repository URL</Label>
-              <Input placeholder="https://github.com/org/repo" value={githubUrl} onChange={(e) => setGithubUrl(e.target.value)} />
+          {connected === "github" ? (
+            <div className="flex flex-col items-center gap-3 py-8">
+              <div className="w-12 h-12 rounded-full bg-primary/20 flex items-center justify-center">
+                <CheckCircle2 className="h-6 w-6 text-primary" />
+              </div>
+              <p className="font-semibold text-lg">Repository Connected!</p>
+              <p className="text-sm text-muted-foreground">Code-aware insights are being set up.</p>
             </div>
-            <div className="flex justify-end gap-2">
-              <Button variant="ghost" onClick={() => setOpenDialog(null)}>Cancel</Button>
-              <Button
-                disabled={!githubUrl || saving}
-                onClick={() => saveData({ ...data, codebase: { github_url: githubUrl } })}
-              >
-                {saving ? "Saving..." : "Connect"}
-              </Button>
-            </div>
-          </div>
+          ) : (
+            <>
+              <DialogHeader>
+                <DialogTitle>Connect Codebase</DialogTitle>
+                <DialogDescription>Link your GitHub repository for code-aware insights.</DialogDescription>
+              </DialogHeader>
+              <div className="space-y-4 pt-2">
+                <div className="space-y-2">
+                  <Label>GitHub Repository URL</Label>
+                  <Input placeholder="https://github.com/org/repo" value={githubUrl} onChange={(e) => setGithubUrl(e.target.value)} />
+                </div>
+                <Button
+                  className="w-full"
+                  disabled={!githubUrl || saving}
+                  onClick={() => saveData({ ...data, codebase: { github_url: githubUrl } }, "github")}
+                >
+                  {saving ? <><Loader2 className="h-4 w-4 animate-spin mr-2" /> Verifying...</> : "Connect Repository"}
+                </Button>
+              </div>
+            </>
+          )}
         </DialogContent>
       </Dialog>
     </>
