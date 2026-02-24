@@ -154,6 +154,7 @@ export function EventsExplorer() {
   const [selectedInstance, setSelectedInstance] = useState<EventRow | null>(null);
   const [sortBy, setSortBy] = useState<"count" | "name" | "lastSeen">("count");
   const [view, setView] = useState<"schema" | "instances">("schema");
+  const [selectedProjectId, setSelectedProjectId] = useState<string>("all");
 
   const { data: projects } = useQuery({
     queryKey: ["projects"],
@@ -164,7 +165,9 @@ export function EventsExplorer() {
     },
   });
 
-  const projectIds = projects?.map((p) => p.id) ?? [];
+  const projectIds = selectedProjectId === "all"
+    ? (projects?.map((p) => p.id) ?? [])
+    : [selectedProjectId];
 
   const { data: events } = useQuery({
     queryKey: ["events-explorer", projectIds],
@@ -280,6 +283,35 @@ export function EventsExplorer() {
           Export CSV
         </Button>
       </div>
+
+      {/* Project toggle */}
+      {projects && projects.length > 1 && (
+        <div className="flex rounded-lg border border-border p-1 bg-muted/30 w-fit">
+          <button
+            onClick={() => setSelectedProjectId("all")}
+            className={`px-3 py-1.5 text-xs font-medium rounded-md transition-colors ${
+              selectedProjectId === "all"
+                ? "bg-background text-foreground shadow-sm"
+                : "text-muted-foreground hover:text-foreground"
+            }`}
+          >
+            All Projects
+          </button>
+          {projects.map((p) => (
+            <button
+              key={p.id}
+              onClick={() => setSelectedProjectId(p.id)}
+              className={`px-3 py-1.5 text-xs font-medium rounded-md transition-colors truncate max-w-[120px] ${
+                selectedProjectId === p.id
+                  ? "bg-background text-foreground shadow-sm"
+                  : "text-muted-foreground hover:text-foreground"
+              }`}
+            >
+              {p.name}
+            </button>
+          ))}
+        </div>
+      )}
 
       <div className="flex items-center gap-3">
         <div className="relative flex-1 max-w-md">
