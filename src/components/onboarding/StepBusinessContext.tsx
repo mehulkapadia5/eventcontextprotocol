@@ -2,7 +2,8 @@ import { useState, useRef, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Progress } from "@/components/ui/progress";
-import { Briefcase, Send, Brain, Trash2, Database } from "lucide-react";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Briefcase, Send, Brain, Trash2, Database, CheckCircle2, Target, Users, Rocket, BarChart3 } from "lucide-react";
 import ReactMarkdown from "react-markdown";
 import { toast } from "sonner";
 
@@ -166,6 +167,53 @@ export function StepBusinessContext({ data, onUpdate, onFinish, onClearContext, 
 
   // Full page layout (ChatGPT-style)
   if (fullPage) {
+    if (contextReady) {
+      const summaryItems = [
+        { icon: Rocket, label: "Product", value: data.product_description },
+        { icon: Users, label: "Audience", value: data.audience },
+        { icon: Target, label: "Goals", value: data.goals },
+        { icon: BarChart3, label: "Stage", value: (data as any).stage },
+        { icon: Brain, label: "Challenges", value: (data as any).challenges },
+      ].filter(item => item.value);
+
+      return (
+        <div className="flex flex-col h-full items-center justify-center p-6">
+          <div className="max-w-lg w-full space-y-6 text-center animate-in fade-in zoom-in-95 duration-500">
+            <div className="mx-auto w-16 h-16 rounded-full bg-primary/15 flex items-center justify-center animate-in zoom-in duration-300">
+              <CheckCircle2 className="h-8 w-8 text-primary" />
+            </div>
+            <div className="space-y-2">
+              <h2 className="text-2xl font-bold">Business Context Captured!</h2>
+              <p className="text-muted-foreground text-sm">
+                We've got a great understanding of your product. Here's what we learned:
+              </p>
+            </div>
+
+            <Card className="text-left">
+              <CardHeader className="pb-3">
+                <CardTitle className="text-base">Your Business Summary</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-3">
+                {summaryItems.map((item, i) => (
+                  <div key={i} className="flex gap-3">
+                    <item.icon className="h-4 w-4 text-primary mt-0.5 shrink-0" />
+                    <div>
+                      <p className="text-xs font-medium text-muted-foreground">{item.label}</p>
+                      <p className="text-sm">{item.value}</p>
+                    </div>
+                  </div>
+                ))}
+              </CardContent>
+            </Card>
+
+            <Button onClick={onFinish} disabled={isSubmitting} size="lg" className="w-full">
+              {isSubmitting ? "Saving..." : "Save & Continue"}
+            </Button>
+          </div>
+        </div>
+      );
+    }
+
     return (
       <div className="flex flex-col h-full">
         {/* Top bar with understanding %, memory, and delete */}
@@ -236,28 +284,19 @@ export function StepBusinessContext({ data, onUpdate, onFinish, onClearContext, 
         {/* Input area at bottom */}
         <div className="border-t border-border bg-background px-4 py-3">
           <div className="max-w-2xl mx-auto">
-            {contextReady ? (
-              <div className="flex items-center justify-center gap-3">
-                <p className="text-sm text-muted-foreground">Context captured!</p>
-                <Button onClick={onFinish} disabled={isSubmitting}>
-                  {isSubmitting ? "Saving..." : "Save Context"}
-                </Button>
-              </div>
-            ) : (
-              <div className="flex gap-2 items-center">
-                <Input
-                  className="rounded-full px-4 h-11"
-                  placeholder="Tell us about your business..."
-                  value={input}
-                  onChange={(e) => setInput(e.target.value)}
-                  onKeyDown={(e) => e.key === "Enter" && !e.shiftKey && send()}
-                  disabled={isLoading}
-                />
-                <Button size="icon" className="rounded-full h-11 w-11 shrink-0" onClick={send} disabled={isLoading || !input.trim()}>
-                  <Send className="h-4 w-4" />
-                </Button>
-              </div>
-            )}
+            <div className="flex gap-2 items-center">
+              <Input
+                className="rounded-full px-4 h-11"
+                placeholder="Tell us about your business..."
+                value={input}
+                onChange={(e) => setInput(e.target.value)}
+                onKeyDown={(e) => e.key === "Enter" && !e.shiftKey && send()}
+                disabled={isLoading}
+              />
+              <Button size="icon" className="rounded-full h-11 w-11 shrink-0" onClick={send} disabled={isLoading || !input.trim()}>
+                <Send className="h-4 w-4" />
+              </Button>
+            </div>
           </div>
         </div>
       </div>
