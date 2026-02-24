@@ -40,6 +40,7 @@ export function OnboardingCards() {
   const [data, setData] = useState<OnboardingData>({});
   const [loading, setLoading] = useState(true);
   const [openDialog, setOpenDialog] = useState<number | null>(null);
+  const [analyticsTab, setAnalyticsTab] = useState<"posthog" | "mixpanel" | "ga">("posthog");
   const [saving, setSaving] = useState(false);
   const [connected, setConnected] = useState<"posthog" | "mixpanel" | "ga" | "github" | "project" | null>(null);
 
@@ -279,142 +280,143 @@ export function OnboardingCards() {
                 </div>
               )}
               <div className="space-y-4 pt-2 max-h-[60vh] overflow-y-auto">
-                <div className="space-y-3 border border-border rounded-lg p-4">
-                  <div className="flex items-center gap-2 mb-2">
-                    <img src={posthogLogo} alt="PostHog" className="h-4 w-4" />
-                    <span className="font-medium text-sm">PostHog</span>
-                  </div>
-                  <div className="space-y-2">
-                    <Label className="flex items-center justify-between">
-                      Personal API Key <span className="text-destructive">*</span>
-                      <a href="https://us.posthog.com/settings/user-api-keys" target="_blank" rel="noopener noreferrer" className="text-xs text-primary hover:underline font-normal">Create key →</a>
-                    </Label>
-                    <Input placeholder="phx_..." value={posthogPersonalKey} onChange={(e) => setPosthogPersonalKey(e.target.value)} />
-                    <p className="text-xs text-muted-foreground">Required to read events. Found in Personal API Keys settings.</p>
-                  </div>
-                  <div className="space-y-2">
-                    <Label className="flex items-center justify-between">
-                      Project ID <span className="text-destructive">*</span>
-                      <a href="https://us.posthog.com/settings/project#variables" target="_blank" rel="noopener noreferrer" className="text-xs text-primary hover:underline font-normal">Find ID →</a>
-                    </Label>
-                    <Input placeholder="12345" value={posthogProjectId} onChange={(e) => setPosthogProjectId(e.target.value)} />
-                  </div>
-                  <div className="space-y-2">
-                    <Label>Host (optional)</Label>
-                    <Input placeholder="https://us.i.posthog.com" value={posthogHost} onChange={(e) => setPosthogHost(e.target.value)} />
-                    <p className="text-xs text-muted-foreground">Use https://eu.i.posthog.com for EU cloud.</p>
-                  </div>
-                  <Button
-                    className="w-full"
-                    disabled={!posthogPersonalKey || !posthogProjectId || saving}
-                    onClick={() => saveData({
-                      ...data,
-                      analytics: {
-                        ...data.analytics,
-                        posthog_personal_key: posthogPersonalKey,
-                        posthog_project_id: posthogProjectId,
-                        posthog_host: posthogHost,
-                      },
-                    }, "posthog")}
-                  >
-                    {saving ? <><Loader2 className="h-4 w-4 animate-spin mr-2" /> Saving...</> : "Connect PostHog"}
-                  </Button>
+                {/* Tab toggle */}
+                <div className="flex rounded-lg border border-border p-1 bg-muted/30">
+                  {([
+                    { key: "posthog" as const, label: "PostHog", logo: posthogLogo },
+                    { key: "mixpanel" as const, label: "Mixpanel", logo: mixpanelLogo },
+                    { key: "ga" as const, label: "GA4", logo: gaLogo },
+                  ]).map((tab) => (
+                    <button
+                      key={tab.key}
+                      onClick={() => setAnalyticsTab(tab.key)}
+                      className={`flex-1 flex items-center justify-center gap-1.5 px-3 py-2 text-sm font-medium rounded-md transition-colors ${
+                        analyticsTab === tab.key
+                          ? "bg-background text-foreground shadow-sm"
+                          : "text-muted-foreground hover:text-foreground"
+                      }`}
+                    >
+                      <img src={tab.logo} alt={tab.label} className="h-4 w-4" />
+                      {tab.label}
+                    </button>
+                  ))}
                 </div>
 
-                <div className="relative">
-                  <div className="absolute inset-0 flex items-center">
-                    <Separator className="w-full" />
+                {/* PostHog form */}
+                {analyticsTab === "posthog" && (
+                  <div className="space-y-3">
+                    <div className="space-y-2">
+                      <Label className="flex items-center justify-between">
+                        Personal API Key <span className="text-destructive">*</span>
+                        <a href="https://us.posthog.com/settings/user-api-keys" target="_blank" rel="noopener noreferrer" className="text-xs text-primary hover:underline font-normal">Create key →</a>
+                      </Label>
+                      <Input placeholder="phx_..." value={posthogPersonalKey} onChange={(e) => setPosthogPersonalKey(e.target.value)} />
+                      <p className="text-xs text-muted-foreground">Required to read events. Found in Personal API Keys settings.</p>
+                    </div>
+                    <div className="space-y-2">
+                      <Label className="flex items-center justify-between">
+                        Project ID <span className="text-destructive">*</span>
+                        <a href="https://us.posthog.com/settings/project#variables" target="_blank" rel="noopener noreferrer" className="text-xs text-primary hover:underline font-normal">Find ID →</a>
+                      </Label>
+                      <Input placeholder="12345" value={posthogProjectId} onChange={(e) => setPosthogProjectId(e.target.value)} />
+                    </div>
+                    <div className="space-y-2">
+                      <Label>Host (optional)</Label>
+                      <Input placeholder="https://us.i.posthog.com" value={posthogHost} onChange={(e) => setPosthogHost(e.target.value)} />
+                      <p className="text-xs text-muted-foreground">Use https://eu.i.posthog.com for EU cloud.</p>
+                    </div>
+                    <Button
+                      className="w-full"
+                      disabled={!posthogPersonalKey || !posthogProjectId || saving}
+                      onClick={() => saveData({
+                        ...data,
+                        analytics: {
+                          ...data.analytics,
+                          posthog_personal_key: posthogPersonalKey,
+                          posthog_project_id: posthogProjectId,
+                          posthog_host: posthogHost,
+                        },
+                      }, "posthog")}
+                    >
+                      {saving ? <><Loader2 className="h-4 w-4 animate-spin mr-2" /> Saving...</> : "Connect PostHog"}
+                    </Button>
                   </div>
-                  <div className="relative flex justify-center text-xs uppercase">
-                    <span className="bg-background px-2 text-muted-foreground">or</span>
-                  </div>
-                </div>
+                )}
 
-                <div className="space-y-3 border border-border rounded-lg p-4">
-                  <div className="flex items-center gap-2 mb-2">
-                    <img src={mixpanelLogo} alt="Mixpanel" className="h-4 w-4" />
-                    <span className="font-medium text-sm">Mixpanel</span>
+                {/* Mixpanel form */}
+                {analyticsTab === "mixpanel" && (
+                  <div className="space-y-3">
+                    <div className="space-y-2">
+                      <Label className="flex items-center justify-between">
+                        API Secret <span className="text-destructive">*</span>
+                        <a href="https://mixpanel.com/settings/project#tokens" target="_blank" rel="noopener noreferrer" className="text-xs text-primary hover:underline font-normal">Find secret →</a>
+                      </Label>
+                      <Input placeholder="API Secret..." value={mixpanelSecret} onChange={(e) => setMixpanelSecret(e.target.value)} />
+                      <p className="text-xs text-muted-foreground">Found in Project Settings → API Secret. Required to export events.</p>
+                    </div>
+                    <div className="space-y-2">
+                      <Label className="flex items-center justify-between">
+                        Project ID <span className="text-destructive">*</span>
+                      </Label>
+                      <Input placeholder="1234567" value={mixpanelProjectId} onChange={(e) => setMixpanelProjectId(e.target.value)} />
+                    </div>
+                    <Button
+                      className="w-full"
+                      disabled={!mixpanelSecret || !mixpanelProjectId || saving}
+                      onClick={() => saveData({
+                        ...data,
+                        analytics: {
+                          ...data.analytics,
+                          mixpanel_secret: mixpanelSecret,
+                          mixpanel_project_id: mixpanelProjectId,
+                        },
+                      }, "mixpanel")}
+                    >
+                      {saving ? <><Loader2 className="h-4 w-4 animate-spin mr-2" /> Saving...</> : "Connect Mixpanel"}
+                    </Button>
                   </div>
-                  <div className="space-y-2">
-                    <Label className="flex items-center justify-between">
-                      API Secret <span className="text-destructive">*</span>
-                      <a href="https://mixpanel.com/settings/project#tokens" target="_blank" rel="noopener noreferrer" className="text-xs text-primary hover:underline font-normal">Find secret →</a>
-                    </Label>
-                    <Input placeholder="API Secret..." value={mixpanelSecret} onChange={(e) => setMixpanelSecret(e.target.value)} />
-                    <p className="text-xs text-muted-foreground">Found in Project Settings → API Secret. Required to export events.</p>
-                  </div>
-                  <div className="space-y-2">
-                    <Label className="flex items-center justify-between">
-                      Project ID <span className="text-destructive">*</span>
-                    </Label>
-                    <Input placeholder="1234567" value={mixpanelProjectId} onChange={(e) => setMixpanelProjectId(e.target.value)} />
-                  </div>
-                  <Button
-                    className="w-full"
-                    disabled={!mixpanelSecret || !mixpanelProjectId || saving}
-                    onClick={() => saveData({
-                      ...data,
-                      analytics: {
-                        ...data.analytics,
-                        mixpanel_secret: mixpanelSecret,
-                        mixpanel_project_id: mixpanelProjectId,
-                      },
-                    }, "mixpanel")}
-                  >
-                    {saving ? <><Loader2 className="h-4 w-4 animate-spin mr-2" /> Saving...</> : "Connect Mixpanel"}
-                  </Button>
-                </div>
+                )}
 
-                <div className="relative">
-                  <div className="absolute inset-0 flex items-center">
-                    <Separator className="w-full" />
+                {/* Google Analytics form */}
+                {analyticsTab === "ga" && (
+                  <div className="space-y-3">
+                    <div className="space-y-2">
+                      <Label className="flex items-center justify-between">
+                        Property ID <span className="text-destructive">*</span>
+                        <a href="https://analytics.google.com/analytics/web/#/a/p/admin/property" target="_blank" rel="noopener noreferrer" className="text-xs text-primary hover:underline font-normal">Find ID →</a>
+                      </Label>
+                      <Input placeholder="123456789" value={gaPropertyId} onChange={(e) => setGaPropertyId(e.target.value)} />
+                      <p className="text-xs text-muted-foreground">Found in GA4 Admin → Property Settings → Property ID.</p>
+                    </div>
+                    <div className="space-y-2">
+                      <Label className="flex items-center justify-between">
+                        Service Account JSON <span className="text-destructive">*</span>
+                        <a href="https://console.cloud.google.com/iam-admin/serviceaccounts" target="_blank" rel="noopener noreferrer" className="text-xs text-primary hover:underline font-normal">Create key →</a>
+                      </Label>
+                      <textarea
+                        className="flex w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 min-h-[80px] font-mono text-xs"
+                        placeholder='{"type":"service_account","project_id":"...","private_key":"..."}'
+                        value={gaServiceAccountJson}
+                        onChange={(e) => setGaServiceAccountJson(e.target.value)}
+                      />
+                      <p className="text-xs text-muted-foreground">Create a service account, grant it "Viewer" on your GA4 property, and paste the JSON key here.</p>
+                    </div>
+                    <Button
+                      className="w-full"
+                      disabled={!gaPropertyId || !gaServiceAccountJson || saving}
+                      onClick={() => saveData({
+                        ...data,
+                        analytics: {
+                          ...data.analytics,
+                          ga_property_id: gaPropertyId,
+                          ga_service_account_json: gaServiceAccountJson,
+                        },
+                      }, "ga")}
+                    >
+                      {saving ? <><Loader2 className="h-4 w-4 animate-spin mr-2" /> Saving...</> : "Connect Google Analytics"}
+                    </Button>
                   </div>
-                  <div className="relative flex justify-center text-xs uppercase">
-                    <span className="bg-background px-2 text-muted-foreground">or</span>
-                  </div>
-                </div>
-
-                <div className="space-y-3 border border-border rounded-lg p-4">
-                  <div className="flex items-center gap-2 mb-2">
-                    <img src={gaLogo} alt="Google Analytics" className="h-4 w-4" />
-                    <span className="font-medium text-sm">Google Analytics 4</span>
-                  </div>
-                  <div className="space-y-2">
-                    <Label className="flex items-center justify-between">
-                      Property ID <span className="text-destructive">*</span>
-                      <a href="https://analytics.google.com/analytics/web/#/a/p/admin/property" target="_blank" rel="noopener noreferrer" className="text-xs text-primary hover:underline font-normal">Find ID →</a>
-                    </Label>
-                    <Input placeholder="123456789" value={gaPropertyId} onChange={(e) => setGaPropertyId(e.target.value)} />
-                    <p className="text-xs text-muted-foreground">Found in GA4 Admin → Property Settings → Property ID.</p>
-                  </div>
-                  <div className="space-y-2">
-                    <Label className="flex items-center justify-between">
-                      Service Account JSON <span className="text-destructive">*</span>
-                      <a href="https://console.cloud.google.com/iam-admin/serviceaccounts" target="_blank" rel="noopener noreferrer" className="text-xs text-primary hover:underline font-normal">Create key →</a>
-                    </Label>
-                    <textarea
-                      className="flex w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 min-h-[80px] font-mono text-xs"
-                      placeholder='{"type":"service_account","project_id":"...","private_key":"..."}'
-                      value={gaServiceAccountJson}
-                      onChange={(e) => setGaServiceAccountJson(e.target.value)}
-                    />
-                    <p className="text-xs text-muted-foreground">Create a service account, grant it "Viewer" on your GA4 property, and paste the JSON key here.</p>
-                  </div>
-                  <Button
-                    className="w-full"
-                    disabled={!gaPropertyId || !gaServiceAccountJson || saving}
-                    onClick={() => saveData({
-                      ...data,
-                      analytics: {
-                        ...data.analytics,
-                        ga_property_id: gaPropertyId,
-                        ga_service_account_json: gaServiceAccountJson,
-                      },
-                    }, "ga")}
-                  >
-                    {saving ? <><Loader2 className="h-4 w-4 animate-spin mr-2" /> Saving...</> : "Connect Google Analytics"}
-                  </Button>
-                </div>
+                )}
               </div>
             </>
           )}
