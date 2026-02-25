@@ -5,22 +5,23 @@ import { Input } from "@/components/ui/input";
 import { BarChart3, Check } from "lucide-react";
 
 interface StepAnalyticsProps {
-  data: { posthog_key?: string; mixpanel_key?: string; ga_property_id?: string };
-  onUpdate: (data: { posthog_key?: string; mixpanel_key?: string; ga_property_id?: string }) => void;
+  data: { posthog_key?: string; mixpanel_key?: string; ga_property_id?: string; metabase_url?: string };
+  onUpdate: (data: { posthog_key?: string; mixpanel_key?: string; ga_property_id?: string; metabase_url?: string }) => void;
   onNext: () => void;
   onSkip: () => void;
 }
 
 export function StepAnalytics({ data, onUpdate, onNext, onSkip }: StepAnalyticsProps) {
-  const [connecting, setConnecting] = useState<"posthog" | "mixpanel" | "ga" | null>(null);
+  const [connecting, setConnecting] = useState<"posthog" | "mixpanel" | "ga" | "metabase" | null>(null);
 
-  const handleConnect = (provider: "posthog" | "mixpanel" | "ga") => {
+  const handleConnect = (provider: "posthog" | "mixpanel" | "ga" | "metabase") => {
     setConnecting(connecting === provider ? null : provider);
   };
 
-  const isConnected = (provider: "posthog" | "mixpanel" | "ga") => {
+  const isConnected = (provider: "posthog" | "mixpanel" | "ga" | "metabase") => {
     if (provider === "posthog") return !!data.posthog_key;
     if (provider === "mixpanel") return !!data.mixpanel_key;
+    if (provider === "metabase") return !!data.metabase_url;
     return !!data.ga_property_id;
   };
 
@@ -135,6 +136,41 @@ export function StepAnalytics({ data, onUpdate, onNext, onSkip }: StepAnalyticsP
                   onChange={(e) => onUpdate({ ...data, ga_property_id: e.target.value })}
                 />
                 <Button size="sm" disabled={!data.ga_property_id} onClick={() => setConnecting(null)}>
+                  Save
+                </Button>
+              </div>
+            </CardContent>
+          )}
+        </Card>
+
+        {/* Metabase */}
+        <Card className={isConnected("metabase") ? "border-primary" : ""}>
+          <CardHeader className="pb-3">
+            <div className="flex items-center justify-between">
+              <div>
+                <CardTitle className="text-lg">Metabase</CardTitle>
+                <CardDescription>Open-source BI & analytics</CardDescription>
+              </div>
+              {isConnected("metabase") ? (
+                <div className="flex items-center gap-1 text-sm text-primary">
+                  <Check className="h-4 w-4" /> Connected
+                </div>
+              ) : (
+                <Button variant="outline" size="sm" onClick={() => handleConnect("metabase")}>
+                  {connecting === "metabase" ? "Cancel" : "Connect"}
+                </Button>
+              )}
+            </div>
+          </CardHeader>
+          {connecting === "metabase" && (
+            <CardContent className="pt-0">
+              <div className="flex gap-2">
+                <Input
+                  placeholder="Enter Metabase database URL"
+                  value={data.metabase_url || ""}
+                  onChange={(e) => onUpdate({ ...data, metabase_url: e.target.value })}
+                />
+                <Button size="sm" disabled={!data.metabase_url} onClick={() => setConnecting(null)}>
                   Save
                 </Button>
               </div>
