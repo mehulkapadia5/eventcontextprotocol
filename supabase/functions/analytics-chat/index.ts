@@ -291,16 +291,25 @@ serve(async (req) => {
         ...toolResults,
       ];
     } else if (!toolCalls) {
-      // AI answered directly without tools — just include its answer as context
+      // AI answered directly without tools — return it immediately as SSE
       const directAnswer = choice?.message?.content;
       if (directAnswer) {
-        // Stream the direct answer back
-        pass2Messages = [
-          { role: "system", content: systemPrompt },
-          ...messages,
-          { role: "assistant", content: directAnswer },
-          { role: "user", content: "Please repeat your previous response exactly as-is." },
-        ];
+        const encoder = new TextEncoder();
+        const stream = new ReadableStream({
+          start(controller) {
+            controller.enqueue(
+              encoder.encode(
+                `data: ${JSON.stringify({ choices: [{ index: 0, delta: { content: directAnswer } }] })}\n\n`
+              )
+            );
+            controller.enqueue(encoder.encode("data: [DONE]\n\n"));
+            controller.close();
+          },
+        });
+
+        return new Response(stream, {
+          headers: { ...corsHeaders, "Content-Type": "text/event-stream" },
+        });
       }
     }
 
