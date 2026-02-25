@@ -10,7 +10,7 @@ import { Check, CheckCircle2, MessageSquare, Loader2, FolderPlus, Sparkles, Key,
 import posthogLogo from "@/assets/posthog-logo.png";
 import mixpanelLogo from "@/assets/mixpanel-logo.png";
 import gaLogo from "@/assets/ga-logo.svg";
-import metabaseLogo from "@/assets/metabase-logo.png";
+import metabaseLogo from "@/assets/metabase-logo.svg";
 import githubLogo from "@/assets/github-logo.png";
 import { Separator } from "@/components/ui/separator";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
