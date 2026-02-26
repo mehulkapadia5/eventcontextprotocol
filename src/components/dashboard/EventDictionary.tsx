@@ -6,7 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
-import { Plus, Trash2, Edit, Save, X, Sparkles, CheckCircle2, Eye, Bot, PenLine } from "lucide-react";
+import { Plus, Trash2, Edit, Save, X, Sparkles, CheckCircle2, Eye, Bot, PenLine, RefreshCw, Code2, Radio, UserPen } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
@@ -95,6 +95,7 @@ function EditableRow({
           className="min-h-[60px] text-sm"
         />
       </TableCell>
+      <TableCell className="text-muted-foreground text-xs">—</TableCell>
       <TableCell>
         <Select value={cat} onValueChange={setCat}>
           <SelectTrigger className="h-8 text-xs"><SelectValue /></SelectTrigger>
@@ -133,12 +134,13 @@ function EditableRow({
   );
 }
 
-export function EventDictionary({ projectId }: { projectId: string }) {
+export function EventDictionary({ projectId, githubUrl, githubPat }: { projectId: string; githubUrl?: string; githubPat?: string }) {
   const [search, setSearch] = useState("");
   const [isAddOpen, setIsAddOpen] = useState(false);
   const [editingName, setEditingName] = useState<string | null>(null);
   const [formData, setFormData] = useState({ event_name: "", description: "", category: "core", status: "verified" });
   const [filterStatus, setFilterStatus] = useState<string>("all");
+  const [isScanning, setIsScanning] = useState(false);
 
   const queryClient = useQueryClient();
 
@@ -172,6 +174,31 @@ export function EventDictionary({ projectId }: { projectId: string }) {
         counts.set(ev.event_name, (counts.get(ev.event_name) || 0) + 1);
       }
       return counts;
+    },
+  });
+
+  // Fetch codebase files to determine source
+  const { data: codebaseFiles } = useQuery({
+    queryKey: ["codebase-files", projectId],
+    enabled: projectId !== "all",
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("codebase_files" as any)
+        .select("file_path, content_snippet")
+        .eq("project_id", projectId)
+        .eq("has_tracking_calls", true);
+      if (error) throw error;
+      // Extract event names from snippets
+      const eventNames = new Set<string>();
+      for (const file of (data || []) as any[]) {
+        const snippet = file.content_snippet || "";
+        const regex = /\.(capture|track|logEvent|send)\s*\(\s*['"]([\w.:\-/ ]+)['"]/g;
+        let match;
+        while ((match = regex.exec(snippet)) !== null) {
+          eventNames.add(match[2]);
+        }
+      }
+      return eventNames;
     },
   });
 
@@ -260,6 +287,35 @@ export function EventDictionary({ projectId }: { projectId: string }) {
     upsertMutation.mutate(formData);
   };
 
+  const handleRescan = async () => {
+    if (!githubUrl) return;
+    setIsScanning(true);
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      const resp = await supabase.functions.invoke("index-codebase-events", {
+        body: { project_id: projectId, github_url: githubUrl, github_pat: githubPat },
+      });
+      if (resp.error) throw resp.error;
+      const result = resp.data;
+      toast.success(`Scan complete: ${result.tracking_calls_found} tracking calls found, ${result.events_discovered} new events discovered`);
+      queryClient.invalidateQueries({ queryKey: ["event-annotations"] });
+      queryClient.invalidateQueries({ queryKey: ["codebase-files"] });
+    } catch (err: any) {
+      toast.error(err.message || "Scan failed");
+    } finally {
+      setIsScanning(false);
+    }
+  };
+
+  const getEventSource = (eventName: string): "codebase" | "live" | "manual" => {
+    if (codebaseFiles?.has(eventName)) return "codebase";
+    const count = liveEventCounts?.get(eventName) || 0;
+    const ann = (annotations || []).find((a) => a.event_name === eventName);
+    if (count > 0 && !ann) return "live";
+    if (ann && ann.status !== "discovered") return "manual";
+    return "live";
+  };
+
   const filtered = mergedEvents.filter(a => {
     const matchesSearch = a.event_name.toLowerCase().includes(search.toLowerCase()) ||
       (a.description?.toLowerCase() || "").includes(search.toLowerCase());
@@ -303,6 +359,14 @@ export function EventDictionary({ projectId }: { projectId: string }) {
             </SelectContent>
           </Select>
         </div>
+
+        <div className="flex items-center gap-2">
+          {githubUrl && (
+            <Button variant="outline" size="sm" onClick={handleRescan} disabled={isScanning}>
+              <RefreshCw className={`h-4 w-4 mr-2 ${isScanning ? "animate-spin" : ""}`} />
+              {isScanning ? "Scanning..." : "Re-scan Codebase"}
+            </Button>
+          )}
 
         <Dialog open={isAddOpen} onOpenChange={setIsAddOpen}>
           <DialogTrigger asChild>
@@ -363,6 +427,7 @@ export function EventDictionary({ projectId }: { projectId: string }) {
             </DialogFooter>
           </DialogContent>
         </Dialog>
+        </div>
       </div>
 
       <div className="border rounded-md">
@@ -371,6 +436,7 @@ export function EventDictionary({ projectId }: { projectId: string }) {
             <TableRow>
               <TableHead className="w-[200px]">Event Name</TableHead>
               <TableHead>Description</TableHead>
+              <TableHead className="w-[100px]">Source</TableHead>
               <TableHead className="w-[120px]">Category</TableHead>
               <TableHead className="w-[120px]">Status</TableHead>
               <TableHead className="w-[100px]"></TableHead>
@@ -378,7 +444,7 @@ export function EventDictionary({ projectId }: { projectId: string }) {
           </TableHeader>
           <TableBody>
             {filtered.length === 0 ? (
-              <TableRow><TableCell colSpan={5} className="text-center py-12 text-muted-foreground">
+              <TableRow><TableCell colSpan={6} className="text-center py-12 text-muted-foreground">
                 <div className="flex flex-col items-center gap-2">
                   <p>No events found.</p>
                   <p className="text-xs">Sync events from your analytics provider or add them manually.</p>
@@ -415,6 +481,17 @@ export function EventDictionary({ projectId }: { projectId: string }) {
                           {ev.description || <span className="italic text-muted-foreground/60">No description — click edit to add one</span>}
                         </span>
                       </div>
+                    </TableCell>
+                    <TableCell>
+                      {(() => {
+                        const source = getEventSource(ev.event_name);
+                        const icon = source === "codebase" ? <Code2 className="h-3 w-3 mr-1" /> : source === "live" ? <Radio className="h-3 w-3 mr-1" /> : <UserPen className="h-3 w-3 mr-1" />;
+                        return (
+                          <Badge variant="outline" className="text-[10px] capitalize font-normal">
+                            {icon}{source}
+                          </Badge>
+                        );
+                      })()}
                     </TableCell>
                     <TableCell>
                       {ev.category && <Badge variant="outline" className="capitalize font-normal text-xs">{ev.category}</Badge>}

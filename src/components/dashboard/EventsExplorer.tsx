@@ -113,6 +113,19 @@ export function EventsExplorer() {
   const [view, setView] = useState<"schema" | "instances">("schema");
   const [selectedProjectId, setSelectedProjectId] = useState<string>("all");
 
+  // Fetch profile for github URL
+  const { data: profile } = useQuery({
+    queryKey: ["profile-github"],
+    queryFn: async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return null;
+      const { data } = await supabase.from("profiles").select("onboarding_data").eq("user_id", user.id).single();
+      return data;
+    },
+  });
+  const githubUrl = (profile?.onboarding_data as any)?.codebase?.github_url;
+  const githubPat = (profile?.onboarding_data as any)?.codebase?.github_pat;
+
   const { data: projects } = useQuery({
     queryKey: ["projects"],
     queryFn: async () => {
@@ -339,7 +352,7 @@ export function EventsExplorer() {
         </TabsContent>
 
         <TabsContent value="dictionary" className="mt-6">
-          <EventDictionary projectId={selectedProjectId} />
+          <EventDictionary projectId={selectedProjectId} githubUrl={githubUrl} githubPat={githubPat} />
         </TabsContent>
       </Tabs>
 
