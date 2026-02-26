@@ -11,6 +11,7 @@ import Admin from "./pages/Admin";
 import NotFound from "./pages/NotFound";
 import { ProtectedRoute } from "./components/ProtectedRoute";
 import { initPostHog } from "./lib/posthog";
+import { SupportBubble } from "./components/SupportBubble";
 
 const queryClient = new QueryClient();
 
@@ -54,6 +55,7 @@ const App = () => (
           />
           <Route path="*" element={<NotFound />} />
         </Routes>
+        <SupportBubble />
       </BrowserRouter>
     </TooltipProvider>
   </QueryClientProvider>
