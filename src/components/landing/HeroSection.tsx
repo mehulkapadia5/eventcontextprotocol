@@ -17,44 +17,36 @@ export function HeroSection() {
         </h1>
 
         <p className="max-w-2xl text-lg text-muted-foreground md:text-xl">
-          Drop in a lightweight SDK, collect events in real-time, and visualize
-          everything in a clean dashboard. No bloated analytics suites — just the
-          data you need.
+          Connect your analytics tools, link your codebase, and let ECP give you
+          AI-powered insights — all in under 5 minutes.
         </p>
 
         <div className="flex flex-col sm:flex-row gap-4">
           <Button size="lg" asChild>
             <Link to="/auth?tab=signup">
-              Start Tracking Free
+              Get Started Free
               <ArrowRight className="ml-2 h-4 w-4" />
             </Link>
           </Button>
           <Button variant="outline" size="lg" asChild>
-            <a href="#sdk">View SDK</a>
+            <a href="#how-it-works">See How It Works</a>
           </Button>
         </div>
 
-        {/* Hero code preview */}
-        <div className="mt-8 w-full max-w-2xl rounded-lg border border-border bg-card p-6 text-left font-mono text-sm">
-          <div className="flex items-center gap-2 mb-4">
-            <div className="h-3 w-3 rounded-full bg-destructive/60" />
-            <div className="h-3 w-3 rounded-full bg-muted" />
-            <div className="h-3 w-3 rounded-full bg-muted" />
-            <span className="ml-2 text-xs text-muted-foreground">app.js</span>
-          </div>
-          <pre className="text-muted-foreground overflow-x-auto">
-            <code>
-{`import { ECP } from '@ecp/sdk';
-
-const tracker = new ECP('your-api-key');
-
-// Track anything
-tracker.track('button_clicked', {
-  page: '/pricing',
-  variant: 'annual'
-});`}
-            </code>
-          </pre>
+        {/* Demo video */}
+        <div className="mt-8 w-full max-w-3xl rounded-lg border border-border overflow-hidden shadow-lg">
+          <video
+            className="w-full"
+            controls
+            autoPlay
+            muted
+            loop
+            playsInline
+            poster=""
+          >
+            <source src="/demo-video.mp4" type="video/mp4" />
+            Your browser does not support the video tag.
+          </video>
         </div>
       </div>
     </section>
