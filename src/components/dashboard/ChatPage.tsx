@@ -156,6 +156,8 @@ export function ChatPage() {
   const handleDeleteConversation = async (id: string) => {
     const remaining = conversations.filter((c) => c.id !== id);
     setConversations(remaining);
+    // Delete messages first (foreign key constraint)
+    await supabase.from("chat_messages").delete().eq("conversation_id", id);
     await supabase.from("chat_conversations").delete().eq("id", id);
     
     if (activeConversationId === id) {
