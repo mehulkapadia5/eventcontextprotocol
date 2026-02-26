@@ -154,12 +154,18 @@ export function ChatPage() {
 
   // Delete conversation
   const handleDeleteConversation = async (id: string) => {
+    const remaining = conversations.filter((c) => c.id !== id);
+    setConversations(remaining);
     await supabase.from("chat_conversations").delete().eq("id", id);
-    setConversations((prev) => prev.filter((c) => c.id !== id));
+    
     if (activeConversationId === id) {
-      setActiveConversationId(null);
-      setInitialMessages(undefined);
-      setResetKey((k) => k + 1);
+      if (remaining.length > 0) {
+        // Switch to the next conversation
+        loadConversation(remaining[0].id);
+      } else {
+        // Create a fresh conversation
+        handleNewChat();
+      }
     }
   };
 
