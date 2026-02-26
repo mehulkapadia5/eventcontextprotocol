@@ -260,7 +260,7 @@ export function OnboardingCards() {
 
       {/* Analytics Dialog */}
       <Dialog open={openDialog === 0} onOpenChange={(open) => { if (!open) { setOpenDialog(null); setConnected(null); } }}>
-        <DialogContent className="sm:max-w-md">
+        <DialogContent className="sm:max-w-2xl">
       {connected === "posthog" || connected === "mixpanel" || connected === "ga" || connected === "metabase" || connected === "supabase" ? (
             <div className="flex flex-col items-center gap-3 py-8">
               <div className="w-12 h-12 rounded-full bg-primary/20 flex items-center justify-center">
