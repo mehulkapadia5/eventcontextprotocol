@@ -38,11 +38,8 @@ export function HeroSection() {
           <video
             className="w-full"
             controls
-            autoPlay
-            muted
             loop
             playsInline
-            poster=""
           >
             <source src="/demo-video.mp4" type="video/mp4" />
             Your browser does not support the video tag.
