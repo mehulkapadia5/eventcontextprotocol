@@ -5,6 +5,7 @@ import { Progress } from "@/components/ui/progress";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Briefcase, Send, Brain, Trash2, Database, CheckCircle2, Target, Users, Rocket, BarChart3, Sparkles, Cpu } from "lucide-react";
+import { PromptSuggestion } from "@/components/ui/prompt-suggestion";
 import ReactMarkdown from "react-markdown";
 import { ChatMessageContent } from "@/components/chat/ChatMessageContent";
 import { toast } from "sonner";
@@ -403,6 +404,28 @@ export function StepBusinessContext({ data, onUpdate, onFinish, onClearContext, 
             <div ref={messagesEndRef} />
           </div>
         </div>
+
+        {/* Prompt suggestions */}
+        {messages.length <= 2 && !isLoading && (
+          <div className="border-t border-border bg-background px-4 py-2">
+            <div className="max-w-2xl mx-auto flex flex-wrap gap-2 justify-center">
+              {contextReady ? (
+                <>
+                  <PromptSuggestion onClick={() => { setInput("How many visitors hit my landing page this week?"); }}>How many visitors this week?</PromptSuggestion>
+                  <PromptSuggestion onClick={() => { setInput("Show me top events by count"); }}>Top events by count</PromptSuggestion>
+                  <PromptSuggestion onClick={() => { setInput("What's my signup conversion rate?"); }}>Signup conversion rate</PromptSuggestion>
+                  <PromptSuggestion onClick={() => { setInput("Show me daily active users trend"); }}>DAU trend</PromptSuggestion>
+                </>
+              ) : (
+                <>
+                  <PromptSuggestion onClick={() => { setInput("We're building a SaaS for small businesses"); }}>Describe my product</PromptSuggestion>
+                  <PromptSuggestion onClick={() => { setInput("Our target audience is startup founders"); }}>Define my audience</PromptSuggestion>
+                  <PromptSuggestion onClick={() => { setInput("We want to increase user retention"); }}>Share my goals</PromptSuggestion>
+                </>
+              )}
+            </div>
+          </div>
+        )}
 
         {/* Input area at bottom */}
         <div className="border-t border-border bg-background px-4 py-3">
