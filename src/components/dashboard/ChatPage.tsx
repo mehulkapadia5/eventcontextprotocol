@@ -290,7 +290,7 @@ export function ChatPage() {
           </Button>
         </div>
         <ScrollArea className="flex-1">
-          <div className="p-2 space-y-1">
+          <div className="p-2 space-y-1 overflow-hidden">
             {conversations.map((conv) => (
               <div
                 key={conv.id}
