@@ -432,7 +432,7 @@ export function StepBusinessContext({ data, onUpdate, onFinish, onClearContext, 
                 placeholder={contextReady ? "Type a message or click a suggestion..." : "Tell us about your business..."}
                 value={input}
                 onChange={(e) => setInput(e.target.value)}
-                onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); send(); } }}
+                onKeyDown={(e) => { if (e.key === "Enter" && e.shiftKey) { e.preventDefault(); send(); } }}
                 disabled={isLoading}
               />
               <Button
@@ -504,7 +504,7 @@ export function StepBusinessContext({ data, onUpdate, onFinish, onClearContext, 
               placeholder={contextReady ? "Ask about analytics..." : "Type your answer..."}
               value={input}
               onChange={(e) => setInput(e.target.value)}
-              onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); send(); } }}
+              onKeyDown={(e) => { if (e.key === "Enter" && e.shiftKey) { e.preventDefault(); send(); } }}
               disabled={isLoading}
             />
             <Button size="icon" className="absolute bottom-2 right-2 rounded-full h-8 w-8" onClick={send} disabled={isLoading || !input.trim()}>
