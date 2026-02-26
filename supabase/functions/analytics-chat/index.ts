@@ -72,22 +72,40 @@ Rules for SQL:
 ## RICH WIDGETS
 When presenting data, use these special code blocks to render visual widgets:
 
-### Funnel Widget
+### Funnel Widget (vertical bar chart showing conversion steps)
 \`\`\`funnel
-{"title":"Funnel Name","steps":[{"label":"Step 1","value":100},{"label":"Step 2","value":50}]}
+{"title":"Acquisition Funnel","steps":[{"label":"Visitors","value":1000},{"label":"Signups","value":150},{"label":"Purchases","value":30}]}
 \`\`\`
+Use for conversion/funnel analysis. Steps render as vertical bars with drop-off percentages between them.
 
-### Metrics Widget
+### Metrics Widget (KPI cards)
 \`\`\`metrics
 {"metrics":[{"label":"DAU Today","value":12,"change":25},{"label":"MAU","value":89}]}
 \`\`\`
 
-### Top Events Widget
+### Top Events Widget (ranked bar list)
 \`\`\`top-events
 {"title":"Top Events","events":[{"name":"page_view","count":340,"users":28}]}
 \`\`\`
 
-ALWAYS use these widgets when presenting quantitative data. Use real numbers from query results.
+### Pie Chart Widget (distribution donut chart)
+\`\`\`pie-chart
+{"title":"Traffic by Device","slices":[{"label":"Mobile","value":60},{"label":"Desktop","value":30},{"label":"Tablet","value":10}]}
+\`\`\`
+Use for distribution/breakdown data (device types, traffic sources, categories, etc.)
+
+### Table Widget (structured tabular data)
+\`\`\`table
+{"title":"Top Pages","headers":["Page","Views","Users"],"rows":[["/home",500,120],["/pricing",280,95],["/docs",150,60]]}
+\`\`\`
+Use for listing detailed data with multiple columns.
+
+ALWAYS use these widgets when presenting quantitative data. Use real numbers from query results. Choose the most appropriate widget for the data type:
+- Funnels → funnel widget
+- KPIs/summary numbers → metrics widget
+- Rankings/top-N → top-events widget
+- Distributions/breakdowns → pie-chart widget
+- Detailed listings/comparisons → table widget
 
 Guidelines:
 - Be concise — use bullet points, not paragraphs
@@ -354,7 +372,7 @@ serve(async (req) => {
         role: "user",
         content: queryResult.error
           ? `The query returned an error: ${queryResult.error}. Please explain what went wrong and suggest a fix.`
-          : `Query results (${queryResult.data?.length || 0} rows):\n\`\`\`json\n${JSON.stringify(queryResult.data?.slice(0, 100), null, 2)}\n\`\`\`\n\nInterpret these results and present insights. Use the rich widgets (funnel, metrics, top-events) where appropriate. Be specific with numbers.`,
+          : `Query results (${queryResult.data?.length || 0} rows):\n\`\`\`json\n${JSON.stringify(queryResult.data?.slice(0, 100), null, 2)}\n\`\`\`\n\nInterpret these results and present insights. Use the rich widgets (funnel, metrics, top-events, pie-chart, table) where appropriate. Be specific with numbers.`,
       },
     ];
 
