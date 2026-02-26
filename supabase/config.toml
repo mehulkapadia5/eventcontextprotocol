@@ -17,3 +17,6 @@ verify_jwt = false
 
 [functions.discover-events]
 verify_jwt = false
+
+[functions.enrich-event-dictionary]
+verify_jwt = false
