@@ -8,7 +8,7 @@ export function HeroSection() {
       <div className="container flex flex-col items-center text-center gap-8">
         <div className="inline-flex items-center gap-2 rounded-full border border-border bg-card px-4 py-1.5 text-sm text-muted-foreground">
           <Zap className="h-3.5 w-3.5" />
-          <span>Developer-first event analytics</span>
+          <span>World's Easiest Tool to Analyse Data</span>
         </div>
 
         <h1 className="max-w-3xl text-4xl font-bold tracking-tight md:text-6xl">
