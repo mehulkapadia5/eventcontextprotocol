@@ -227,14 +227,16 @@ export function OnboardingCards() {
             >
               <CardHeader className="pb-4">
                 <div className="flex items-center justify-between">
-                   <div className="flex items-center gap-3">
-                    {step.done ? (
-                      <div className="w-8 h-8 rounded-full flex items-center justify-center bg-primary/20">
-                        <Check className="h-4 w-4 text-primary" />
-                      </div>
-                    ) : (
-                      step.logo
-                    )}
+                   <div className="flex flex-col gap-2">
+                    <div className="flex items-center gap-2">
+                      {step.done ? (
+                        <div className="w-8 h-8 rounded-full flex items-center justify-center bg-primary/20">
+                          <Check className="h-4 w-4 text-primary" />
+                        </div>
+                      ) : (
+                        step.logo
+                      )}
+                    </div>
                     <div>
                       <CardTitle className="text-sm">{step.title}</CardTitle>
                       <CardDescription className="text-xs">{step.description}</CardDescription>
