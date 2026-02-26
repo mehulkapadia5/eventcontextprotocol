@@ -123,7 +123,7 @@ function getAIEndpoint(config?: LlmConfig): { url: string; apiKey: string; model
         break;
     }
   }
-  return { url: "https://ai.gateway.lovable.dev/v1/chat/completions", apiKey: Deno.env.get("LOVABLE_API_KEY") || "", model: "google/gemini-3-flash-preview", isAnthropic: false };
+  return { url: "https://ai.gateway.lovable.dev/v1/chat/completions", apiKey: Deno.env.get("LOVABLE_API_KEY") || "", model: "openai/gpt-5-mini", isAnthropic: false };
 }
 
 async function callAIWithTools(endpoint: ReturnType<typeof getAIEndpoint>, messages: any[], tools?: any[], stream = false) {
@@ -257,9 +257,50 @@ serve(async (req) => {
       });
     }
 
-    const pass1Data = await pass1Response.json();
+    let pass1Data: any;
+    const contentType = pass1Response.headers.get("content-type") || "";
+    if (contentType.includes("text/event-stream")) {
+      // Gateway returned SSE even for non-streaming — collect the full text
+      const sseText = await pass1Response.text();
+      const lines = sseText.split("\n").filter(l => l.startsWith("data: ") && !l.includes("[DONE]"));
+      // Reconstruct from SSE chunks
+      let fullContent = "";
+      let toolCallsFromSSE: any[] | undefined;
+      let finishReasonSSE: string | null = null;
+      for (const line of lines) {
+        try {
+          const chunk = JSON.parse(line.slice(6));
+          const delta = chunk.choices?.[0]?.delta;
+          if (delta?.content) fullContent += delta.content;
+          if (delta?.tool_calls) {
+            if (!toolCallsFromSSE) toolCallsFromSSE = [];
+            for (const tc of delta.tool_calls) {
+              if (tc.index !== undefined) {
+                if (!toolCallsFromSSE[tc.index]) toolCallsFromSSE[tc.index] = { id: tc.id, function: { name: "", arguments: "" } };
+                if (tc.id) toolCallsFromSSE[tc.index].id = tc.id;
+                if (tc.function?.name) toolCallsFromSSE[tc.index].function.name += tc.function.name;
+                if (tc.function?.arguments) toolCallsFromSSE[tc.index].function.arguments += tc.function.arguments;
+              }
+            }
+          }
+          if (chunk.choices?.[0]?.finish_reason) finishReasonSSE = chunk.choices[0].finish_reason;
+        } catch { /* skip malformed lines */ }
+      }
+      pass1Data = {
+        choices: [{
+          message: {
+            content: fullContent || null,
+            tool_calls: toolCallsFromSSE?.length ? toolCallsFromSSE : undefined,
+          },
+          finish_reason: finishReasonSSE,
+        }],
+      };
+    } else {
+      pass1Data = await pass1Response.json();
+    }
     const choice = pass1Data.choices?.[0];
     const toolCalls = choice?.message?.tool_calls;
+    const finishReason = choice?.finish_reason;
 
     // If AI didn't call a tool, it answered directly — stream that as pass 2
     let pass2Messages = [
@@ -290,27 +331,32 @@ serve(async (req) => {
         choice.message, // assistant message with tool_calls
         ...toolResults,
       ];
-    } else if (!toolCalls) {
+    } else if (!toolCalls && choice?.message?.content) {
       // AI answered directly without tools — return it immediately as SSE
-      const directAnswer = choice?.message?.content;
-      if (directAnswer) {
-        const encoder = new TextEncoder();
-        const stream = new ReadableStream({
-          start(controller) {
-            controller.enqueue(
-              encoder.encode(
-                `data: ${JSON.stringify({ choices: [{ index: 0, delta: { content: directAnswer } }] })}\n\n`
-              )
-            );
-            controller.enqueue(encoder.encode("data: [DONE]\n\n"));
-            controller.close();
-          },
-        });
+      const directAnswer = choice.message.content;
+      const encoder = new TextEncoder();
+      const stream = new ReadableStream({
+        start(controller) {
+          controller.enqueue(
+            encoder.encode(
+              `data: ${JSON.stringify({ choices: [{ index: 0, delta: { content: directAnswer } }] })}\n\n`
+            )
+          );
+          controller.enqueue(encoder.encode("data: [DONE]\n\n"));
+          controller.close();
+        },
+      });
 
-        return new Response(stream, {
-          headers: { ...corsHeaders, "Content-Type": "text/event-stream" },
-        });
-      }
+      return new Response(stream, {
+        headers: { ...corsHeaders, "Content-Type": "text/event-stream" },
+      });
+    } else if (finishReason === "error" || (!toolCalls && !choice?.message?.content)) {
+      // Tool call was malformed or empty response — retry without tools
+      console.log("Pass 1 failed (reason:", finishReason, "), retrying without tools");
+      pass2Messages = [
+        { role: "system", content: systemPrompt + "\n\nIMPORTANT: You cannot call tools right now. If you need data, write the SQL query in your response wrapped in a ```sql code block and explain what it would show. Answer the user's question as best you can with the context you have." },
+        ...messages,
+      ];
     }
 
     // PASS 2: Stream the final response
