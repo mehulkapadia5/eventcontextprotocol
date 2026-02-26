@@ -1,5 +1,5 @@
 import ReactMarkdown from "react-markdown";
-import { FunnelWidget, MetricsWidget, TopEventsWidget, PieChartWidget, renderMessageWithWidgets } from "./ChatWidgets";
+import { FunnelWidget, MetricsWidget, TopEventsWidget, PieChartWidget, TableWidget, renderMessageWithWidgets } from "./ChatWidgets";
 
 interface ChatMessageContentProps {
   content: string;
@@ -79,6 +79,8 @@ export function ChatMessageContent({ content }: ChatMessageContentProps) {
             return <TopEventsWidget key={i} data={widget.data} />;
           case "pie-chart":
             return <PieChartWidget key={i} data={widget.data} />;
+          case "table":
+            return <TableWidget key={i} data={widget.data} />;
           default:
             return null;
         }
