@@ -342,6 +342,46 @@ serve(async (req) => {
       }
     }
 
+    // --- Supabase DB ---
+    if (analytics.supabase_url && analytics.supabase_anon_key && fetchedEvents.length === 0) {
+      source = "supabase";
+      try {
+        const extSupabase = createClient(analytics.supabase_url, analytics.supabase_anon_key);
+        const tableName = analytics.supabase_table || "events";
+
+        const { data: extEvents, error: extError } = await extSupabase
+          .from(tableName)
+          .select("*")
+          .order("created_at", { ascending: false })
+          .limit(500);
+
+        if (extError) {
+          console.error("Supabase external DB error:", extError);
+          return new Response(
+            JSON.stringify({ error: `Supabase DB error: ${extError.message}` }),
+            { status: 502, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+          );
+        }
+
+        if (extEvents && extEvents.length > 0) {
+          fetchedEvents = extEvents.map((ev: any) => ({
+            project_id: projectId,
+            event_name: ev.event_name || ev.name || ev.event || ev.type || "unknown",
+            user_identifier: ev.user_identifier || ev.user_id || ev.distinct_id || ev.userId || null,
+            properties: ev.properties || ev.metadata || ev.data || {},
+            timestamp: ev.timestamp || ev.created_at || ev.occurred_at || new Date().toISOString(),
+            page_url: ev.page_url || ev.url || (ev.properties && ev.properties.$current_url) || null,
+          }));
+        }
+      } catch (sbErr) {
+        console.error("Supabase external DB error:", sbErr);
+        return new Response(
+          JSON.stringify({ error: `Supabase DB error: ${sbErr instanceof Error ? sbErr.message : "Unknown error"}` }),
+          { status: 502, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+    }
+
     if (fetchedEvents.length === 0) {
       return new Response(
         JSON.stringify({
