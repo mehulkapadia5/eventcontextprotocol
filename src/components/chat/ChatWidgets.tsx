@@ -281,12 +281,65 @@ export function PieChartWidget({ data }: { data: string }) {
   }
 }
 
+interface TableData {
+  title?: string;
+  headers: string[];
+  rows: (string | number)[][];
+}
+
+export function TableWidget({ data }: { data: string }) {
+  try {
+    const parsed: TableData = JSON.parse(data);
+    const headers = parsed.headers;
+    const rows = parsed.rows;
+    if (!Array.isArray(headers) || !Array.isArray(rows) || headers.length === 0) return null;
+
+    return (
+      <Card className="my-3 overflow-hidden">
+        <CardContent className="p-3">
+          {parsed.title && (
+            <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">
+              {parsed.title}
+            </p>
+          )}
+          <div className="overflow-x-auto">
+            <table className="w-full text-xs">
+              <thead>
+                <tr className="border-b border-border">
+                  {headers.map((h, i) => (
+                    <th key={i} className="px-3 py-2 text-left font-semibold text-muted-foreground bg-muted/50">
+                      {h}
+                    </th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {rows.map((row, ri) => (
+                  <tr key={ri} className="border-b border-border/50 last:border-0">
+                    {row.map((cell, ci) => (
+                      <td key={ci} className="px-3 py-2 font-mono">
+                        {typeof cell === "number" ? cell.toLocaleString() : cell}
+                      </td>
+                    ))}
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </CardContent>
+      </Card>
+    );
+  } catch {
+    return null;
+  }
+}
+
 /**
  * Parses a chat message and replaces special code blocks with widgets.
- * Supported: ```funnel, ```metrics, ```top-events, ```pie-chart
+ * Supported: ```funnel, ```metrics, ```top-events, ```pie-chart, ```table
  */
 export function renderMessageWithWidgets(content: string): { text: string; widgets: { type: string; data: string; position: number }[] } {
-  const widgetRegex = /```(funnel|metrics|top-events|pie-chart)\n([\s\S]*?)```/g;
+  const widgetRegex = /```(funnel|metrics|top-events|pie-chart|table)\n([\s\S]*?)```/g;
   const widgets: { type: string; data: string; position: number }[] = [];
   let cleanText = content;
   let match;
