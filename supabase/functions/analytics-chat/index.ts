@@ -31,6 +31,9 @@ NOTES:
 - Use timestamp for time-based queries, not created_at
 - properties is JSONB — use properties->>'key' or properties->'key' for access
 - user_identifier is how end-users are tracked (can be email, ID, etc.)
+- CRITICAL: page_url column is usually NULL. The actual page URL is stored in properties->>'$current_url'. ALWAYS use properties->>'$current_url' for URL-based filtering, NEVER use page_url.
+- The $pathname is in properties->>'$pathname' (e.g. '/', '/dashboard', '/auth')
+- The host/domain is in properties->>'$host' (e.g. 'usmlevault.com')
 `;
 
 const SYSTEM_PROMPT = `You are ECP's analytics assistant. You have DIRECT ACCESS to the user's event database and MUST query it to answer data questions. NEVER tell the user to check PostHog, Mixpanel, or any external dashboard — YOU are the dashboard.
