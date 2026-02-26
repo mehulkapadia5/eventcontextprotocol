@@ -28,7 +28,7 @@ type Msg = { role: "user" | "assistant"; content: string; timestamp: Date };
 interface StepBusinessContextProps {
   data: { product_description?: string; audience?: string; goals?: string };
   onUpdate: (data: { product_description?: string; audience?: string; goals?: string; [key: string]: string | undefined }) => void;
-  onFinish: () => void;
+  onFinish: (businessOverride?: { product_description?: string; audience?: string; goals?: string; [key: string]: string | undefined }) => void;
   onClearContext?: () => void;
   isSubmitting: boolean;
   inline?: boolean;
@@ -277,22 +277,35 @@ export function StepBusinessContext({ data, onUpdate, onFinish, onClearContext, 
         );
       }
 
-      if (assistantSoFar.includes("CONTEXT_COMPLETE:")) {
-        const jsonPart = assistantSoFar.split("CONTEXT_COMPLETE:")[1]?.replace(/CONFIDENCE:\d+\s*$/, '').trim();
+      const contextMatch = assistantSoFar.match(/CONTEXT_COMPLETE:\s*(\{[\s\S]*?\})(?=\s*CONFIDENCE:|$)/);
+      if (contextMatch) {
         try {
-          const parsed = JSON.parse(jsonPart || "{}");
-          onUpdate(parsed);
+          const parsed = JSON.parse(contextMatch[1]);
+          const parsedBusiness = {
+            product_description: parsed?.product_description,
+            audience: parsed?.audience,
+            goals: parsed?.goals,
+            stage: parsed?.stage,
+            challenges: parsed?.challenges,
+          };
+
+          onUpdate(parsedBusiness);
           setContextReady(true);
           setAiConfidence(100);
           onConfidenceChange?.(100);
-          const cleanMsg = assistantSoFar.split("CONTEXT_COMPLETE:")[0].replace(/\nCONFIDENCE:\d+\s*$/, '').trim() ||
-            "Great, I've got a good understanding of your business! You're all set.";
+
+          const cleanMsg = assistantSoFar
+            .replace(/\n?CONTEXT_COMPLETE:\s*\{[\s\S]*?\}(?=\s*CONFIDENCE:|$)/, "")
+            .replace(/\nCONFIDENCE:\d+\s*$/, "")
+            .trim() || "Great, I've got a good understanding of your business! You're all set.";
+
           const transitionMsg = cleanMsg + "\n\n✨ **You can now ask me analytics questions!** I'll use your business context to give tailored insights about your events, metrics, and tracking strategy.";
           setMessages((prev) =>
             prev.map((m, i) => (i === prev.length - 1 ? { ...m, content: transitionMsg } : m))
           );
-          // Auto-save context
-          setTimeout(() => onFinish(), 500);
+
+          // Auto-save context with explicit payload to avoid state timing races
+          setTimeout(() => onFinish(parsedBusiness), 500);
         } catch {
           // AI didn't return valid JSON, that's ok
         }
@@ -477,11 +490,11 @@ export function StepBusinessContext({ data, onUpdate, onFinish, onClearContext, 
       {!inline && (
         <div className="flex justify-center gap-3 pt-2">
           {contextReady ? (
-            <Button onClick={onFinish} disabled={isSubmitting}>
+            <Button onClick={() => onFinish()} disabled={isSubmitting}>
               {isSubmitting ? "Finishing..." : "Finish Setup"}
             </Button>
           ) : (
-            <Button variant="ghost" onClick={onFinish} disabled={isSubmitting}>
+            <Button variant="ghost" onClick={() => onFinish()} disabled={isSubmitting}>
               Skip & Finish
             </Button>
           )}
@@ -489,7 +502,7 @@ export function StepBusinessContext({ data, onUpdate, onFinish, onClearContext, 
       )}
       {inline && contextReady && (
         <div className="pt-2">
-          <Button size="sm" onClick={onFinish} disabled={isSubmitting}>
+          <Button size="sm" onClick={() => onFinish()} disabled={isSubmitting}>
             {isSubmitting ? "Saving..." : "Save Context"}
           </Button>
         </div>

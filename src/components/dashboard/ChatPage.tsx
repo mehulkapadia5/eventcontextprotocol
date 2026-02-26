@@ -88,24 +88,29 @@ export function ChatPage() {
 
   useEffect(() => { fetchProfile(); }, [fetchProfile]);
 
-  const handleFinish = async () => {
+  const handleFinish = async (businessOverride?: { product_description?: string; audience?: string; goals?: string; [key: string]: string | undefined }) => {
     if (!session?.user?.id) return;
     setSaving(true);
     try {
-      const analytics = data.analytics as any;
+      const finalData = businessOverride
+        ? { ...data, business: { ...(data.business || {}), ...businessOverride } }
+        : data;
+
+      const analytics = finalData.analytics as any;
       const hasAnalytics = !!(analytics?.posthog_key || analytics?.posthog_personal_key || analytics?.mixpanel_key || analytics?.mixpanel_secret || analytics?.ga4_property_id);
       const allDone = hasAnalytics &&
-        !!data.codebase?.github_url &&
-        !!data.business?.product_description;
+        !!finalData.codebase?.github_url &&
+        !!finalData.business?.product_description;
 
       const { error } = await supabase
         .from("profiles")
         .update({
-          onboarding_data: data,
+          onboarding_data: finalData,
           onboarding_completed: allDone,
         } as any)
         .eq("user_id", session.user.id);
       if (error) throw error;
+      if (businessOverride) setData(finalData);
       toast.success("Business context saved!");
     } catch {
       toast.error("Failed to save.");
