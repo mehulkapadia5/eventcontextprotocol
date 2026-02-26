@@ -515,11 +515,6 @@ export function OnboardingCards() {
                       <Input placeholder="eyJhbGciOi..." value={supabaseAnonKey} onChange={(e) => setSupabaseAnonKey(e.target.value)} />
                       <p className="text-xs text-muted-foreground">The anon/public key from your Supabase project API settings.</p>
                     </div>
-                    <div className="space-y-2">
-                      <Label>Events Table Name</Label>
-                      <Input placeholder="events" value={supabaseTable} onChange={(e) => setSupabaseTable(e.target.value)} />
-                      <p className="text-xs text-muted-foreground">The table that stores your analytics events. Defaults to "events".</p>
-                    </div>
                     <Button
                       className="w-full"
                       disabled={!supabaseUrl || !supabaseAnonKey || saving}
