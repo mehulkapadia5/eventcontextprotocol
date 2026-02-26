@@ -303,11 +303,11 @@ export function ChatPage() {
                 onClick={() => loadConversation(conv.id)}
               >
                 <MessageSquare className="h-4 w-4 shrink-0" />
-                <span className="flex-1 min-w-0 truncate">{conv.title}</span>
+                <span className="flex-1 min-w-0 truncate pr-1">{conv.title}</span>
                 <Button
                   variant="ghost"
                   size="icon"
-                  className="h-6 w-6 shrink-0 opacity-70 hover:opacity-100 transition-opacity"
+                  className="h-6 w-6 shrink-0 opacity-100 text-foreground/80 hover:text-foreground hover:bg-background/80 transition-colors"
                   onClick={(e) => {
                     e.stopPropagation();
                     handleDeleteConversation(conv.id);
