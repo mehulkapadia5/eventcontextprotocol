@@ -233,6 +233,21 @@ export function ChatPage() {
       if (error) throw error;
       if (businessOverride) setData(finalData);
       toast.success("Business context saved!");
+
+      // Enrich event dictionary with business context in the background
+      const businessCtx = finalData.business || businessOverride;
+      if (businessCtx?.product_description) {
+        const { data: project } = await supabase.from("projects").select("id").eq("user_id", session.user.id).single();
+        if (project?.id) {
+          supabase.functions.invoke("enrich-event-dictionary", {
+            body: { project_id: project.id, business_context: businessCtx },
+          }).then(({ data: result, error: enrichErr }) => {
+            if (!enrichErr && result?.enriched > 0) {
+              toast.success(`Enriched ${result.enriched} events with business context`);
+            }
+          });
+        }
+      }
     } catch {
       toast.error("Failed to save.");
     } finally {
