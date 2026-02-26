@@ -485,7 +485,7 @@ export function StepBusinessContext({ data, onUpdate, onFinish, onClearContext, 
                 placeholder={contextReady ? "Type a message or click a suggestion..." : "Tell us about your business..."}
                 value={input}
                 onChange={(e) => setInput(e.target.value)}
-                onKeyDown={(e) => { if (e.key === "Enter" && e.shiftKey) { e.preventDefault(); send(); } }}
+                onKeyDown={(e) => { if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) { e.preventDefault(); send(); } }}
                 disabled={isLoading}
               />
               <Button
