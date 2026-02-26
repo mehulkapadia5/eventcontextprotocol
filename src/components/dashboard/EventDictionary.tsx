@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
@@ -23,12 +23,23 @@ interface EventAnnotation {
   project_id: string;
 }
 
-function StatsCards({ annotations }: { annotations: EventAnnotation[] }) {
-  const total = annotations.length;
-  const discovered = annotations.filter(a => a.status === "discovered").length;
-  const verified = annotations.filter(a => a.status === "verified").length;
-  const deprecated = annotations.filter(a => a.status === "deprecated").length;
-  const annotated = annotations.filter(a => a.description && a.description.trim().length > 0).length;
+interface MergedEvent {
+  id: string | null;
+  event_name: string;
+  description: string | null;
+  category: string | null;
+  status: 'discovered' | 'verified' | 'deprecated' | 'unannotated';
+  updated_at: string | null;
+  project_id: string;
+  liveCount: number;
+  isAnnotated: boolean;
+}
+
+function StatsCards({ events }: { events: MergedEvent[] }) {
+  const total = events.length;
+  const discovered = events.filter(a => a.status === "discovered").length;
+  const verified = events.filter(a => a.status === "verified").length;
+  const annotated = events.filter(a => a.isAnnotated).length;
   const annotatedPct = total > 0 ? Math.round((annotated / total) * 100) : 0;
 
   const stats = [
@@ -58,21 +69,20 @@ function StatsCards({ annotations }: { annotations: EventAnnotation[] }) {
   );
 }
 
-// Inline editing row component
 function EditableRow({ 
   ann, 
   onSave, 
   onCancel, 
   saving 
 }: { 
-  ann: EventAnnotation; 
-  onSave: (data: { description: string; category: string; status: string }) => void; 
+  ann: MergedEvent; 
+  onSave: (data: { event_name: string; description: string; category: string; status: string }) => void; 
   onCancel: () => void;
   saving: boolean;
 }) {
   const [desc, setDesc] = useState(ann.description || "");
   const [cat, setCat] = useState(ann.category || "core");
-  const [status, setStatus] = useState<string>(ann.status || "verified");
+  const [status, setStatus] = useState<string>(ann.status === "unannotated" ? "discovered" : ann.status);
 
   return (
     <TableRow className="bg-muted/30">
@@ -111,7 +121,7 @@ function EditableRow({
       </TableCell>
       <TableCell>
         <div className="flex items-center justify-end gap-1">
-          <Button variant="default" size="icon" className="h-7 w-7" onClick={() => onSave({ description: desc, category: cat, status })} disabled={saving}>
+          <Button variant="default" size="icon" className="h-7 w-7" onClick={() => onSave({ event_name: ann.event_name, description: desc, category: cat, status })} disabled={saving}>
             <Save className="h-3.5 w-3.5" />
           </Button>
           <Button variant="ghost" size="icon" className="h-7 w-7" onClick={onCancel}>
@@ -126,13 +136,14 @@ function EditableRow({
 export function EventDictionary({ projectId }: { projectId: string }) {
   const [search, setSearch] = useState("");
   const [isAddOpen, setIsAddOpen] = useState(false);
-  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editingName, setEditingName] = useState<string | null>(null);
   const [formData, setFormData] = useState({ event_name: "", description: "", category: "core", status: "verified" });
   const [filterStatus, setFilterStatus] = useState<string>("all");
 
   const queryClient = useQueryClient();
 
-  const { data: annotations, isLoading } = useQuery({
+  // Fetch annotations
+  const { data: annotations } = useQuery({
     queryKey: ["event-annotations", projectId],
     enabled: projectId !== "all",
     queryFn: async () => {
@@ -146,11 +157,75 @@ export function EventDictionary({ projectId }: { projectId: string }) {
     },
   });
 
+  // Fetch live events to get unique event names + counts
+  const { data: liveEventCounts } = useQuery({
+    queryKey: ["live-event-counts", projectId],
+    enabled: projectId !== "all",
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("events")
+        .select("event_name")
+        .eq("project_id", projectId);
+      if (error) throw error;
+      const counts = new Map<string, number>();
+      for (const ev of data || []) {
+        counts.set(ev.event_name, (counts.get(ev.event_name) || 0) + 1);
+      }
+      return counts;
+    },
+  });
+
+  // Merge live events with annotations
+  const mergedEvents = useMemo(() => {
+    const annotationMap = new Map<string, EventAnnotation>();
+    for (const ann of annotations || []) {
+      annotationMap.set(ann.event_name, ann);
+    }
+
+    const allNames = new Set<string>();
+    for (const name of annotationMap.keys()) allNames.add(name);
+    for (const name of liveEventCounts?.keys() || []) allNames.add(name);
+
+    const result: MergedEvent[] = [];
+    for (const name of allNames) {
+      const ann = annotationMap.get(name);
+      const count = liveEventCounts?.get(name) || 0;
+      if (ann) {
+        result.push({
+          id: ann.id,
+          event_name: ann.event_name,
+          description: ann.description,
+          category: ann.category,
+          status: ann.status,
+          updated_at: ann.updated_at,
+          project_id: ann.project_id,
+          liveCount: count,
+          isAnnotated: true,
+        });
+      } else {
+        result.push({
+          id: null,
+          event_name: name,
+          description: null,
+          category: null,
+          status: "unannotated",
+          updated_at: null,
+          project_id: projectId,
+          liveCount: count,
+          isAnnotated: false,
+        });
+      }
+    }
+
+    result.sort((a, b) => a.event_name.localeCompare(b.event_name));
+    return result;
+  }, [annotations, liveEventCounts, projectId]);
+
   const upsertMutation = useMutation({
     mutationFn: async (vars: any) => {
       const { error } = await supabase
         .from("event_annotations")
-        .upsert({ ...vars, project_id: projectId })
+        .upsert({ ...vars, project_id: projectId }, { onConflict: "event_name,project_id" })
         .select();
       if (error) throw error;
     },
@@ -158,7 +233,7 @@ export function EventDictionary({ projectId }: { projectId: string }) {
       queryClient.invalidateQueries({ queryKey: ["event-annotations"] });
       toast.success("Saved successfully");
       setIsAddOpen(false);
-      setEditingId(null);
+      setEditingName(null);
       setFormData({ event_name: "", description: "", category: "core", status: "verified" });
     },
     onError: (err) => toast.error(err.message),
@@ -176,8 +251,8 @@ export function EventDictionary({ projectId }: { projectId: string }) {
     onError: (err) => toast.error(err.message),
   });
 
-  const handleInlineSave = (annId: string, data: { description: string; category: string; status: string }) => {
-    upsertMutation.mutate({ ...data, id: annId });
+  const handleInlineSave = (data: { event_name: string; description: string; category: string; status: string }) => {
+    upsertMutation.mutate(data);
   };
 
   const handleAddSave = () => {
@@ -185,12 +260,12 @@ export function EventDictionary({ projectId }: { projectId: string }) {
     upsertMutation.mutate(formData);
   };
 
-  const filtered = annotations?.filter(a => {
+  const filtered = mergedEvents.filter(a => {
     const matchesSearch = a.event_name.toLowerCase().includes(search.toLowerCase()) ||
       (a.description?.toLowerCase() || "").includes(search.toLowerCase());
     const matchesStatus = filterStatus === "all" || a.status === filterStatus;
     return matchesSearch && matchesStatus;
-  }) || [];
+  });
 
   if (projectId === "all") {
     return (
@@ -208,25 +283,20 @@ export function EventDictionary({ projectId }: { projectId: string }) {
 
   return (
     <div className="space-y-5">
-      {/* Stats Cards */}
-      {annotations && annotations.length > 0 && <StatsCards annotations={annotations} />}
+      {mergedEvents.length > 0 && <StatsCards events={mergedEvents} />}
 
-      {/* Controls */}
       <div className="flex items-center justify-between gap-3">
         <div className="flex items-center gap-2 flex-1">
           <div className="relative w-full max-w-sm">
-            <Input
-              placeholder="Search events..."
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-            />
+            <Input placeholder="Search events..." value={search} onChange={(e) => setSearch(e.target.value)} />
           </div>
           <Select value={filterStatus} onValueChange={setFilterStatus}>
-            <SelectTrigger className="w-36 h-9 text-xs">
+            <SelectTrigger className="w-40 h-9 text-xs">
               <SelectValue placeholder="Filter status" />
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="all">All Statuses</SelectItem>
+              <SelectItem value="unannotated">Unannotated</SelectItem>
               <SelectItem value="discovered">Discovered</SelectItem>
               <SelectItem value="verified">Verified</SelectItem>
               <SelectItem value="deprecated">Deprecated</SelectItem>
@@ -237,7 +307,7 @@ export function EventDictionary({ projectId }: { projectId: string }) {
         <Dialog open={isAddOpen} onOpenChange={setIsAddOpen}>
           <DialogTrigger asChild>
             <Button size="sm" onClick={() => {
-              setEditingId(null);
+              setEditingName(null);
               setFormData({ event_name: "", description: "", category: "core", status: "verified" });
             }}>
               <Plus className="h-4 w-4 mr-2" /> Add Event
@@ -250,19 +320,11 @@ export function EventDictionary({ projectId }: { projectId: string }) {
             <div className="space-y-4 py-4">
               <div className="space-y-2">
                 <Label>Event Name</Label>
-                <Input
-                  value={formData.event_name}
-                  onChange={(e) => setFormData({ ...formData, event_name: e.target.value })}
-                  placeholder="e.g. signup_completed"
-                />
+                <Input value={formData.event_name} onChange={(e) => setFormData({ ...formData, event_name: e.target.value })} placeholder="e.g. signup_completed" />
               </div>
               <div className="space-y-2">
                 <Label>Description</Label>
-                <Textarea
-                  value={formData.description}
-                  onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-                  placeholder="What does this event mean?"
-                />
+                <Textarea value={formData.description} onChange={(e) => setFormData({ ...formData, description: e.target.value })} placeholder="What does this event mean?" />
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
@@ -303,7 +365,6 @@ export function EventDictionary({ projectId }: { projectId: string }) {
         </Dialog>
       </div>
 
-      {/* Table */}
       <div className="border rounded-md">
         <Table>
           <TableHeader>
@@ -316,69 +377,79 @@ export function EventDictionary({ projectId }: { projectId: string }) {
             </TableRow>
           </TableHeader>
           <TableBody>
-            {isLoading ? (
-              <TableRow><TableCell colSpan={5} className="text-center py-8">Loading...</TableCell></TableRow>
-            ) : filtered.length === 0 ? (
+            {filtered.length === 0 ? (
               <TableRow><TableCell colSpan={5} className="text-center py-12 text-muted-foreground">
                 <div className="flex flex-col items-center gap-2">
-                  <p>No events found in dictionary.</p>
-                  <p className="text-xs">Connect your codebase to auto-discover events or add them manually.</p>
+                  <p>No events found.</p>
+                  <p className="text-xs">Sync events from your analytics provider or add them manually.</p>
                 </div>
               </TableCell></TableRow>
             ) : (
-              filtered.map((ann) =>
-                editingId === ann.id ? (
+              filtered.map((ev) =>
+                editingName === ev.event_name ? (
                   <EditableRow
-                    key={ann.id}
-                    ann={ann}
-                    onSave={(data) => handleInlineSave(ann.id, data)}
-                    onCancel={() => setEditingId(null)}
+                    key={ev.event_name}
+                    ann={ev}
+                    onSave={handleInlineSave}
+                    onCancel={() => setEditingName(null)}
                     saving={upsertMutation.isPending}
                   />
                 ) : (
-                  <TableRow key={ann.id}>
-                    <TableCell className="font-mono text-sm font-medium">{ann.event_name}</TableCell>
+                  <TableRow key={ev.event_name}>
+                    <TableCell className="font-mono text-sm font-medium">
+                      <div className="flex items-center gap-2">
+                        {ev.event_name}
+                        {ev.liveCount > 0 && (
+                          <Badge variant="secondary" className="text-[10px] h-5 px-1.5 font-mono shrink-0">
+                            {ev.liveCount.toLocaleString()}
+                          </Badge>
+                        )}
+                      </div>
+                    </TableCell>
                     <TableCell className="max-w-[300px] text-muted-foreground">
                       <div className="flex items-start gap-1.5">
-                        {ann.status === "discovered" && !ann.description && (
-                          <Sparkles className="h-3.5 w-3.5 text-blue-500 shrink-0 mt-0.5" />
+                        {!ev.isAnnotated && (
+                          <Sparkles className="h-3.5 w-3.5 text-amber-500 shrink-0 mt-0.5" />
                         )}
-                        <span className="text-sm line-clamp-2" title={ann.description || ""}>
-                          {ann.description || <span className="italic text-muted-foreground/60">No description — click edit to add one</span>}
+                        <span className="text-sm line-clamp-2" title={ev.description || ""}>
+                          {ev.description || <span className="italic text-muted-foreground/60">No description — click edit to add one</span>}
                         </span>
                       </div>
                     </TableCell>
                     <TableCell>
-                      {ann.category && <Badge variant="outline" className="capitalize font-normal text-xs">{ann.category}</Badge>}
+                      {ev.category && <Badge variant="outline" className="capitalize font-normal text-xs">{ev.category}</Badge>}
                     </TableCell>
                     <TableCell>
                       <Badge
                         variant="outline"
                         className={`capitalize text-xs ${
-                          ann.status === 'verified' ? 'bg-green-500/10 text-green-600 border-green-500/20' :
-                          ann.status === 'deprecated' ? 'bg-destructive/10 text-destructive border-destructive/20' :
+                          ev.status === 'verified' ? 'bg-green-500/10 text-green-600 border-green-500/20' :
+                          ev.status === 'deprecated' ? 'bg-destructive/10 text-destructive border-destructive/20' :
+                          ev.status === 'unannotated' ? 'bg-amber-500/10 text-amber-600 border-amber-500/20' :
                           'bg-blue-500/10 text-blue-600 border-blue-500/20'
                         }`}
                       >
-                        {ann.status === "discovered" && <Bot className="h-3 w-3 mr-1" />}
-                        {ann.status}
+                        {ev.status === "discovered" && <Bot className="h-3 w-3 mr-1" />}
+                        {ev.status === "unannotated" ? "New" : ev.status}
                       </Badge>
                     </TableCell>
                     <TableCell>
                       <div className="flex items-center justify-end gap-1">
-                        <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setEditingId(ann.id)}>
+                        <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setEditingName(ev.event_name)}>
                           <Edit className="h-4 w-4" />
                         </Button>
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="h-8 w-8 text-muted-foreground hover:text-destructive"
-                          onClick={() => {
-                            if (confirm("Are you sure you want to delete this annotation?")) deleteMutation.mutate(ann.id);
-                          }}
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
+                        {ev.id && (
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-8 w-8 text-muted-foreground hover:text-destructive"
+                            onClick={() => {
+                              if (confirm("Are you sure you want to delete this annotation?")) deleteMutation.mutate(ev.id!);
+                            }}
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        )}
                       </div>
                     </TableCell>
                   </TableRow>
