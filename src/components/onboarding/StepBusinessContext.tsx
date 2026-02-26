@@ -159,6 +159,26 @@ export function StepBusinessContext({ data, onUpdate, onFinish, onClearContext, 
             }
           }
 
+          // Parse and save PARTIAL_CONTEXT from codebase analysis
+          const partialMatch = assistantSoFar.match(/PARTIAL_CONTEXT:\s*(\{[\s\S]*?\})(?=\s*(?:CONFIDENCE|CONTEXT_COMPLETE|$))/);
+          if (partialMatch) {
+            try {
+              const partial = JSON.parse(partialMatch[1]);
+              const partialBusiness: Record<string, string | undefined> = {};
+              for (const key of ["product_description", "audience", "goals", "stage", "challenges"]) {
+                const val = partial[key];
+                if (val && val !== "null" && val !== "...or null") {
+                  partialBusiness[key] = val;
+                }
+              }
+              if (Object.keys(partialBusiness).length > 0) {
+                onUpdate(partialBusiness);
+                onFinish(partialBusiness);
+              }
+            } catch { /* skip */ }
+            assistantSoFar = assistantSoFar.replace(/\n?PARTIAL_CONTEXT:\s*\{[\s\S]*?\}(?=\s*(?:CONFIDENCE|CONTEXT_COMPLETE|$))/, "");
+          }
+
           // Parse confidence
           const confidenceMatch = assistantSoFar.match(/CONFIDENCE:(\d+)\s*$/);
           if (confidenceMatch) {
@@ -166,10 +186,10 @@ export function StepBusinessContext({ data, onUpdate, onFinish, onClearContext, 
             setAiConfidence(conf);
             onConfidenceChange?.(conf);
             assistantSoFar = assistantSoFar.replace(/\nCONFIDENCE:\d+\s*$/, '').replace(/CONFIDENCE:\d+\s*$/, '');
-            setMessages((prev) =>
-              prev.map((m, i) => (i === prev.length - 1 ? { ...m, content: assistantSoFar } : m))
-            );
           }
+          setMessages((prev) =>
+            prev.map((m, i) => (i === prev.length - 1 ? { ...m, content: assistantSoFar } : m))
+          );
 
           // Hide the auto user message from the UI
           setMessages((prev) => prev.filter((m) => m.content !== "Hey, I just connected my repo. Tell me what you see."));
@@ -266,19 +286,41 @@ export function StepBusinessContext({ data, onUpdate, onFinish, onClearContext, 
         }
       }
 
-      // Parse confidence from response
-      const confidenceMatch = assistantSoFar.match(/CONFIDENCE:(\d+)\s*$/);
+      // Parse and strip PARTIAL_CONTEXT, CONFIDENCE, CONTEXT_COMPLETE from response
+      let cleanedText = assistantSoFar;
+
+      // 1. Parse PARTIAL_CONTEXT — save incrementally
+      const partialMatch = cleanedText.match(/PARTIAL_CONTEXT:\s*(\{[\s\S]*?\})(?=\s*(?:CONFIDENCE|CONTEXT_COMPLETE|$))/);
+      if (partialMatch) {
+        try {
+          const partial = JSON.parse(partialMatch[1]);
+          const partialBusiness: Record<string, string | undefined> = {};
+          for (const key of ["product_description", "audience", "goals", "stage", "challenges"]) {
+            const val = partial[key];
+            if (val && val !== "null" && val !== "...or null") {
+              partialBusiness[key] = val;
+            }
+          }
+          if (Object.keys(partialBusiness).length > 0) {
+            onUpdate(partialBusiness);
+            // Auto-save partial context in background
+            onFinish(partialBusiness);
+          }
+        } catch { /* skip bad JSON */ }
+        cleanedText = cleanedText.replace(/\n?PARTIAL_CONTEXT:\s*\{[\s\S]*?\}(?=\s*(?:CONFIDENCE|CONTEXT_COMPLETE|$))/, "");
+      }
+
+      // 2. Parse CONFIDENCE
+      const confidenceMatch = cleanedText.match(/CONFIDENCE:(\d+)\s*$/);
       if (confidenceMatch) {
         const conf = Math.min(100, Math.max(0, parseInt(confidenceMatch[1], 10)));
         setAiConfidence(conf);
         onConfidenceChange?.(conf);
-        assistantSoFar = assistantSoFar.replace(/\nCONFIDENCE:\d+\s*$/, '').replace(/CONFIDENCE:\d+\s*$/, '');
-        setMessages((prev) =>
-          prev.map((m, i) => (i === prev.length - 1 ? { ...m, content: assistantSoFar } : m))
-        );
+        cleanedText = cleanedText.replace(/\nCONFIDENCE:\d+\s*$/, '').replace(/CONFIDENCE:\d+\s*$/, '');
       }
 
-      const contextMatch = assistantSoFar.match(/CONTEXT_COMPLETE:\s*(\{[\s\S]*?\})(?=\s*CONFIDENCE:|$)/);
+      // 3. Parse CONTEXT_COMPLETE — transition to analytics mode
+      const contextMatch = cleanedText.match(/CONTEXT_COMPLETE:\s*(\{[\s\S]*?\})(?=\s*CONFIDENCE:|$)/);
       if (contextMatch) {
         try {
           const parsed = JSON.parse(contextMatch[1]);
@@ -295,22 +337,25 @@ export function StepBusinessContext({ data, onUpdate, onFinish, onClearContext, 
           setAiConfidence(100);
           onConfidenceChange?.(100);
 
-          const cleanMsg = assistantSoFar
+          cleanedText = cleanedText
             .replace(/\n?CONTEXT_COMPLETE:\s*\{[\s\S]*?\}(?=\s*CONFIDENCE:|$)/, "")
             .replace(/\nCONFIDENCE:\d+\s*$/, "")
             .trim() || "Great, I've got a good understanding of your business! You're all set.";
 
-          const transitionMsg = cleanMsg + "\n\n✨ **You can now ask me analytics questions!** I'll use your business context to give tailored insights about your events, metrics, and tracking strategy.";
-          setMessages((prev) =>
-            prev.map((m, i) => (i === prev.length - 1 ? { ...m, content: transitionMsg } : m))
-          );
+          cleanedText += "\n\n✨ **You can now ask me analytics questions!** I'll use your business context to give tailored insights about your events, metrics, and tracking strategy.";
 
-          // Auto-save context with explicit payload to avoid state timing races
+          // Auto-save final context
           setTimeout(() => onFinish(parsedBusiness), 500);
         } catch {
           // AI didn't return valid JSON, that's ok
         }
       }
+
+      // Update displayed message with cleaned text (no tags)
+      assistantSoFar = cleanedText.trim();
+      setMessages((prev) =>
+        prev.map((m, i) => (i === prev.length - 1 ? { ...m, content: assistantSoFar } : m))
+      );
     } catch (e) {
       console.error(e);
       toast.error("Connection error. Please try again.");
