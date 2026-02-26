@@ -295,6 +295,7 @@ serve(async (req) => {
       pass1Data = {
         choices: [{
           message: {
+            role: "assistant",
             content: fullContent || null,
             tool_calls: toolCallsFromSSE?.length ? toolCallsFromSSE : undefined,
           },
@@ -366,6 +367,7 @@ serve(async (req) => {
     }
 
     // PASS 2: Stream the final response
+    console.log("Pass 2: sending", pass2Messages.length, "messages, roles:", pass2Messages.map((m: any) => m.role).join(","));
     const pass2Response = await callAIWithTools(endpoint, pass2Messages, undefined, true);
 
     if (!pass2Response.ok) {
