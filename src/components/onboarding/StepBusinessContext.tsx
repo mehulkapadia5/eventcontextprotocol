@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from "react";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 import { Progress } from "@/components/ui/progress";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -405,41 +405,42 @@ export function StepBusinessContext({ data, onUpdate, onFinish, onClearContext, 
           </div>
         </div>
 
-        {/* Prompt suggestions */}
-        {messages.length <= 2 && !isLoading && (
-          <div className="border-t border-border bg-background px-4 py-2">
-            <div className="max-w-2xl mx-auto flex flex-wrap gap-2 justify-center">
-              {contextReady ? (
-                <>
-                  <PromptSuggestion onClick={() => { setInput("How many visitors hit my landing page this week?"); }}>How many visitors this week?</PromptSuggestion>
-                  <PromptSuggestion onClick={() => { setInput("Show me top events by count"); }}>Top events by count</PromptSuggestion>
-                  <PromptSuggestion onClick={() => { setInput("What's my signup conversion rate?"); }}>Signup conversion rate</PromptSuggestion>
-                  <PromptSuggestion onClick={() => { setInput("Show me daily active users trend"); }}>DAU trend</PromptSuggestion>
-                </>
-              ) : (
-                <>
-                  <PromptSuggestion onClick={() => { setInput("We're building a SaaS for small businesses"); }}>Describe my product</PromptSuggestion>
-                  <PromptSuggestion onClick={() => { setInput("Our target audience is startup founders"); }}>Define my audience</PromptSuggestion>
-                  <PromptSuggestion onClick={() => { setInput("We want to increase user retention"); }}>Share my goals</PromptSuggestion>
-                </>
-              )}
-            </div>
-          </div>
-        )}
-
-        {/* Input area at bottom */}
+        {/* Prompt suggestions + Input area */}
         <div className="border-t border-border bg-background px-4 py-3">
-          <div className="max-w-2xl mx-auto">
-            <div className="flex gap-2 items-center">
-              <Input
-                className="rounded-full px-4 h-11"
-                placeholder={contextReady ? "Ask about analytics, events, metrics..." : "Tell us about your business..."}
+          <div className="max-w-2xl mx-auto space-y-3">
+            {messages.length <= 2 && !isLoading && (
+              <div className="flex flex-wrap gap-2 justify-center">
+                {contextReady ? (
+                  <>
+                    <PromptSuggestion onClick={() => { setInput("How many visitors hit my landing page this week?"); }}>How many visitors this week?</PromptSuggestion>
+                    <PromptSuggestion onClick={() => { setInput("Show me top events by count"); }}>Top events by count</PromptSuggestion>
+                    <PromptSuggestion onClick={() => { setInput("What's my signup conversion rate?"); }}>Signup conversion rate</PromptSuggestion>
+                    <PromptSuggestion onClick={() => { setInput("Show me daily active users trend"); }}>DAU trend</PromptSuggestion>
+                  </>
+                ) : (
+                  <>
+                    <PromptSuggestion onClick={() => { setInput("We're building a SaaS for small businesses"); }}>Describe my product</PromptSuggestion>
+                    <PromptSuggestion onClick={() => { setInput("Our target audience is startup founders"); }}>Define my audience</PromptSuggestion>
+                    <PromptSuggestion onClick={() => { setInput("We want to increase user retention"); }}>Share my goals</PromptSuggestion>
+                  </>
+                )}
+              </div>
+            )}
+            <div className="relative">
+              <Textarea
+                className="min-h-[80px] max-h-[160px] resize-none rounded-xl pr-12 text-sm"
+                placeholder={contextReady ? "Type a message or click a suggestion..." : "Tell us about your business..."}
                 value={input}
                 onChange={(e) => setInput(e.target.value)}
-                onKeyDown={(e) => e.key === "Enter" && !e.shiftKey && send()}
+                onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); send(); } }}
                 disabled={isLoading}
               />
-              <Button size="icon" className="rounded-full h-11 w-11 shrink-0" onClick={send} disabled={isLoading || !input.trim()}>
+              <Button
+                size="icon"
+                className="absolute bottom-2 right-2 rounded-full h-8 w-8"
+                onClick={send}
+                disabled={isLoading || !input.trim()}
+              >
                 <Send className="h-4 w-4" />
               </Button>
             </div>
@@ -496,17 +497,20 @@ export function StepBusinessContext({ data, onUpdate, onFinish, onClearContext, 
           </div>
         </div>
 
-        <div className="border-t border-border p-3 flex gap-2">
-          <Input
-            placeholder={contextReady ? "Ask about analytics..." : "Type your answer..."}
-            value={input}
-            onChange={(e) => setInput(e.target.value)}
-            onKeyDown={(e) => e.key === "Enter" && !e.shiftKey && send()}
-            disabled={isLoading}
-          />
-          <Button size="icon" onClick={send} disabled={isLoading || !input.trim()}>
-            <Send className="h-4 w-4" />
-          </Button>
+        <div className="border-t border-border p-3">
+          <div className="relative">
+            <Textarea
+              className="min-h-[60px] max-h-[120px] resize-none rounded-xl pr-12 text-sm"
+              placeholder={contextReady ? "Ask about analytics..." : "Type your answer..."}
+              value={input}
+              onChange={(e) => setInput(e.target.value)}
+              onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); send(); } }}
+              disabled={isLoading}
+            />
+            <Button size="icon" className="absolute bottom-2 right-2 rounded-full h-8 w-8" onClick={send} disabled={isLoading || !input.trim()}>
+              <Send className="h-4 w-4" />
+            </Button>
+          </div>
         </div>
       </div>
 
