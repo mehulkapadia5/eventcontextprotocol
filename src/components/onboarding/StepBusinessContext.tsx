@@ -34,6 +34,8 @@ interface StepBusinessContextProps {
   inline?: boolean;
   fullPage?: boolean;
   repoContext?: string | null;
+  savedConfidence?: number;
+  onConfidenceChange?: (confidence: number) => void;
 }
 
 function formatBytes(bytes: number): string {
@@ -45,7 +47,7 @@ function formatBytes(bytes: number): string {
 const CHAT_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/business-context-chat`;
 const ANALYTICS_CHAT_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/analytics-chat`;
 
-export function StepBusinessContext({ data, onUpdate, onFinish, onClearContext, isSubmitting, inline, fullPage, repoContext }: StepBusinessContextProps) {
+export function StepBusinessContext({ data, onUpdate, onFinish, onClearContext, isSubmitting, inline, fullPage, repoContext, savedConfidence, onConfidenceChange }: StepBusinessContextProps) {
   const hasExistingData = !!(data.product_description || data.audience || data.goals);
   const initialMessage = hasExistingData
     ? "Welcome back! I remember your business context. ✨ You can ask me analytics questions or update your context anytime."
@@ -61,7 +63,8 @@ export function StepBusinessContext({ data, onUpdate, onFinish, onClearContext, 
   const hasExistingContext = !!(data.product_description || data.audience || data.goals);
   const [contextReady, setContextReady] = useState(hasExistingContext);
   const [analyticsMode, setAnalyticsMode] = useState(hasExistingContext);
-  const [aiConfidence, setAiConfidence] = useState(hasExistingContext ? 100 : 0);
+  const initialConfidence = hasExistingContext ? 100 : (savedConfidence ?? 0);
+  const [aiConfidence, setAiConfidence] = useState(initialConfidence);
   const [hasAutoSent, setHasAutoSent] = useState(false);
   const [activeModel, setActiveModel] = useState<string | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -160,6 +163,7 @@ export function StepBusinessContext({ data, onUpdate, onFinish, onClearContext, 
           if (confidenceMatch) {
             const conf = Math.min(100, Math.max(0, parseInt(confidenceMatch[1], 10)));
             setAiConfidence(conf);
+            onConfidenceChange?.(conf);
             assistantSoFar = assistantSoFar.replace(/\nCONFIDENCE:\d+\s*$/, '').replace(/CONFIDENCE:\d+\s*$/, '');
             setMessages((prev) =>
               prev.map((m, i) => (i === prev.length - 1 ? { ...m, content: assistantSoFar } : m))
@@ -266,7 +270,7 @@ export function StepBusinessContext({ data, onUpdate, onFinish, onClearContext, 
       if (confidenceMatch) {
         const conf = Math.min(100, Math.max(0, parseInt(confidenceMatch[1], 10)));
         setAiConfidence(conf);
-        // Strip the confidence tag from displayed message
+        onConfidenceChange?.(conf);
         assistantSoFar = assistantSoFar.replace(/\nCONFIDENCE:\d+\s*$/, '').replace(/CONFIDENCE:\d+\s*$/, '');
         setMessages((prev) =>
           prev.map((m, i) => (i === prev.length - 1 ? { ...m, content: assistantSoFar } : m))
@@ -280,6 +284,7 @@ export function StepBusinessContext({ data, onUpdate, onFinish, onClearContext, 
           onUpdate(parsed);
           setContextReady(true);
           setAiConfidence(100);
+          onConfidenceChange?.(100);
           const cleanMsg = assistantSoFar.split("CONTEXT_COMPLETE:")[0].replace(/\nCONFIDENCE:\d+\s*$/, '').trim() ||
             "Great, I've got a good understanding of your business! You're all set.";
           const transitionMsg = cleanMsg + "\n\n✨ **You can now ask me analytics questions!** I'll use your business context to give tailored insights about your events, metrics, and tracking strategy.";

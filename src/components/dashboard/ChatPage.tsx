@@ -17,6 +17,7 @@ export function ChatPage() {
   const [saving, setSaving] = useState(false);
   const [resetKey, setResetKey] = useState(0);
   const [repoContext, setRepoContext] = useState<string | null>(null);
+  const [savedConfidence, setSavedConfidence] = useState(0);
 
   const fetchProfile = useCallback(async () => {
     if (!session?.user?.id) return;
@@ -28,6 +29,7 @@ export function ChatPage() {
     const od = (profile as any)?.onboarding_data as OnboardingData | null;
     if (od) {
       setData(od);
+      setSavedConfidence((od as any).ai_confidence ?? 0);
       // Use persisted context if available, otherwise fetch live
       if ((od.codebase as any)?.context) {
         setRepoContext((od.codebase as any).context);
@@ -115,7 +117,7 @@ export function ChatPage() {
   const handleClearContext = async () => {
     if (!session?.user?.id) return;
     try {
-      const updated = { ...data, business: {} };
+      const updated = { ...data, business: {}, ai_confidence: 0 };
       const { error } = await supabase
         .from("profiles")
         .update({
@@ -125,11 +127,21 @@ export function ChatPage() {
         .eq("user_id", session.user.id);
       if (error) throw error;
       setData(updated);
+      setSavedConfidence(0);
       setResetKey((k) => k + 1);
       toast.success("Context cleared. Start a new conversation.");
     } catch {
       toast.error("Failed to clear context.");
     }
+  };
+
+  const handleConfidenceChange = async (confidence: number) => {
+    setSavedConfidence(confidence);
+    if (!session?.user?.id) return;
+    // Persist confidence in background
+    supabase.from("profiles").update({
+      onboarding_data: { ...data, ai_confidence: confidence },
+    } as any).eq("user_id", session.user.id).then(() => {});
   };
 
   if (loading) return <div className="flex-1" />;
@@ -145,6 +157,8 @@ export function ChatPage() {
         isSubmitting={saving}
         fullPage
         repoContext={repoContext}
+        savedConfidence={savedConfidence}
+        onConfidenceChange={handleConfidenceChange}
       />
     </div>
   );
