@@ -1,6 +1,6 @@
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Check, ArrowRight, ArrowDown, Sparkles } from "lucide-react";
+import { Check, ArrowRight, ArrowDown, Sparkles, MessageSquare } from "lucide-react";
 import posthogLogo from "@/assets/posthog-logo.png";
 import mixpanelLogo from "@/assets/mixpanel-logo.png";
 import gaLogo from "@/assets/ga-logo.svg";
@@ -19,7 +19,7 @@ export function HowItWorksSection() {
     <section id="how-it-works" className="py-24 border-t border-border">
       <div className="container">
         <div className="text-center mb-16">
-          <Badge variant="secondary" className="mb-4">3 simple steps</Badge>
+          <Badge variant="secondary" className="mb-4">4 simple steps</Badge>
           <h2 className="text-3xl font-bold tracking-tight md:text-4xl mb-4">
             Set up in under 5 minutes
           </h2>
@@ -106,8 +106,46 @@ export function HowItWorksSection() {
             </div>
           </div>
 
-          {/* Step 3 — AI Insights */}
+          {/* Step 3 — Business Context */}
           <div className="animate-fade-in" style={{ animationDelay: "0.5s", animationFillMode: "both" }}>
+            <Card className="border-border hover:border-primary/40 transition-all duration-300">
+              <CardHeader className="pb-3">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <div className="w-9 h-9 rounded-full bg-primary/15 flex items-center justify-center font-mono font-bold text-sm text-primary">
+                      3
+                    </div>
+                    <div>
+                      <CardTitle className="text-base">Business Context</CardTitle>
+                      <CardDescription className="text-xs">Chat with AI to describe your product, audience, and goals</CardDescription>
+                    </div>
+                  </div>
+                  <Badge variant="outline" className="text-xs">Step 3</Badge>
+                </div>
+              </CardHeader>
+              <CardContent className="pt-0">
+                <div className="rounded-lg border border-border bg-card/80 p-3 space-y-2">
+                  <div className="flex items-start gap-2">
+                    <MessageSquare className="h-4 w-4 text-primary mt-0.5 flex-shrink-0" />
+                    <div className="space-y-1.5 text-xs text-muted-foreground">
+                      <p className="italic">"We're a B2B SaaS for project management. Our users are engineering teams..."</p>
+                      <p className="italic">"Our main goal is to increase activation rate for new signups."</p>
+                    </div>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+
+          {/* Arrow */}
+          <div className="flex justify-center">
+            <div className="flex flex-col items-center gap-1 text-muted-foreground animate-fade-in" style={{ animationDelay: "0.6s", animationFillMode: "both" }}>
+              <ArrowDown className="h-5 w-5 animate-bounce" style={{ animationDuration: "2s", animationDelay: "0.5s" }} />
+            </div>
+          </div>
+
+          {/* Step 4 — AI Insights */}
+          <div className="animate-fade-in" style={{ animationDelay: "0.7s", animationFillMode: "both" }}>
             <Card className="border-primary/40 hover:border-primary/60 transition-all duration-300 relative overflow-hidden">
               {/* Subtle glow effect */}
               <div className="absolute inset-0 bg-gradient-to-br from-primary/5 to-transparent pointer-events-none" />
