@@ -1,17 +1,31 @@
-import { MessageCircle } from "lucide-react";
+import { MessageCircle, X } from "lucide-react";
+import { useState } from "react";
 
 export function SupportBubble() {
+  const [open, setOpen] = useState(false);
+
   return (
-    <a
-      href="https://wa.me/918660280422"
-      target="_blank"
-      rel="noopener noreferrer"
-      className="fixed bottom-6 right-6 z-50 inline-flex items-center gap-2 rounded-full bg-primary px-4 py-3 text-sm font-medium text-primary-foreground shadow-lg transition-colors hover:bg-primary/90"
-      aria-label="Need help? Contact Mehul"
-    >
-      <MessageCircle className="h-5 w-5" />
-      <span>Need help? Contact Mehul</span>
-    </a>
+    <div className="fixed bottom-5 right-5 z-50 flex flex-col items-end gap-2">
+      {open && (
+        <div className="mb-1 rounded-xl border border-border bg-card p-4 shadow-xl animate-in fade-in slide-in-from-bottom-2 duration-200 w-56">
+          <p className="text-sm font-medium mb-3">Need help?</p>
+          <a
+            href="https://wa.me/918660280422"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="inline-flex items-center gap-1 text-sm font-semibold text-primary hover:underline"
+          >
+            Talk to Mehul →
+          </a>
+        </div>
+      )}
+      <button
+        onClick={() => setOpen((v) => !v)}
+        className="flex h-11 w-11 items-center justify-center rounded-full bg-foreground text-background shadow-lg transition-transform hover:scale-105"
+        aria-label="Support"
+      >
+        {open ? <X className="h-4 w-4" /> : <MessageCircle className="h-4 w-4" />}
+      </button>
+    </div>
   );
 }
-
