@@ -289,13 +289,13 @@ export function ChatPage() {
             <PanelLeftClose className="h-4 w-4" />
           </Button>
         </div>
-        <ScrollArea className="flex-1">
-          <div className="p-2 space-y-1 overflow-hidden">
+        <div className="flex-1 overflow-y-auto overflow-x-hidden">
+          <div className="p-2 space-y-1">
             {conversations.map((conv) => (
               <div
                 key={conv.id}
                 className={cn(
-                  "group flex items-center gap-2 px-3 py-2 rounded-md cursor-pointer text-sm transition-colors min-w-0",
+                  "group flex items-center gap-2 px-3 py-2 rounded-md cursor-pointer text-sm transition-colors overflow-hidden",
                   activeConversationId === conv.id
                     ? "bg-accent text-accent-foreground"
                     : "text-muted-foreground hover:bg-accent/50 hover:text-foreground"
@@ -318,7 +318,7 @@ export function ChatPage() {
               </div>
             ))}
           </div>
-        </ScrollArea>
+        </div>
       </div>
 
       {/* Main chat area */}
