@@ -13,7 +13,6 @@ export function Navbar() {
         <nav className="hidden md:flex items-center gap-6 text-sm text-muted-foreground">
           <a href="#features" className="hover:text-foreground transition-colors">Features</a>
           <a href="#how-it-works" className="hover:text-foreground transition-colors">How It Works</a>
-          <a href="#sdk" className="hover:text-foreground transition-colors">SDK</a>
         </nav>
         <div className="flex items-center gap-3">
           <Button variant="ghost" size="sm" asChild>
