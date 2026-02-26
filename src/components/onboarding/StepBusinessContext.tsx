@@ -365,7 +365,7 @@ export function StepBusinessContext({ data, onUpdate, onFinish, onClearContext, 
             {messages.map((msg, i) => (
               <div key={i} className={`flex flex-col ${msg.role === "user" ? "items-end" : "items-start"}`}>
                 <div
-                  className={`max-w-[85%] rounded-2xl px-4 py-3 text-sm ${
+                  className={`max-w-[85%] rounded-2xl px-4 py-3 text-sm font-['Mona_Sans',sans-serif] ${
                     msg.role === "user"
                       ? "bg-primary text-primary-foreground"
                       : "bg-muted text-foreground"
