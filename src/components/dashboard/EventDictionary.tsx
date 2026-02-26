@@ -180,19 +180,20 @@ export function EventDictionary({ projectId, githubUrl: initialGithubUrl, github
     },
   });
 
-  // Fetch codebase files to determine source
-  const { data: codebaseFiles } = useQuery({
+  // Fetch codebase files to determine source + last synced time
+  const { data: codebaseFilesData } = useQuery({
     queryKey: ["codebase-files", projectId],
     enabled: projectId !== "all",
     queryFn: async () => {
       const { data, error } = await supabase
         .from("codebase_files" as any)
-        .select("file_path, content_snippet")
+        .select("file_path, content_snippet, last_synced_at")
         .eq("project_id", projectId)
         .eq("has_tracking_calls", true);
       if (error) throw error;
       // Extract event names from snippets
       const eventNames = new Set<string>();
+      let latestSync: string | null = null;
       for (const file of (data || []) as any[]) {
         const snippet = file.content_snippet || "";
         const regex = /\.(capture|track|logEvent|send)\s*\(\s*['"]([\w.:\-/ ]+)['"]/g;
@@ -200,10 +201,16 @@ export function EventDictionary({ projectId, githubUrl: initialGithubUrl, github
         while ((match = regex.exec(snippet)) !== null) {
           eventNames.add(match[2]);
         }
+        if (file.last_synced_at && (!latestSync || file.last_synced_at > latestSync)) {
+          latestSync = file.last_synced_at;
+        }
       }
-      return eventNames;
+      return { eventNames, latestSync };
     },
   });
+
+  const codebaseFiles = codebaseFilesData?.eventNames;
+  const lastSyncedAt = codebaseFilesData?.latestSync;
 
   // Merge live events with annotations
   const mergedEvents = useMemo(() => {
@@ -369,10 +376,17 @@ export function EventDictionary({ projectId, githubUrl: initialGithubUrl, github
         </div>
 
         <div className="flex items-center gap-2">
-          <Button variant="outline" size="sm" onClick={() => handleRescan()} disabled={isScanning}>
-            <RefreshCw className={`h-4 w-4 mr-2 ${isScanning ? "animate-spin" : ""}`} />
-            {isScanning ? "Scanning..." : "Scan Codebase"}
-          </Button>
+          <div className="flex flex-col items-end gap-0.5">
+            <Button variant="outline" size="sm" onClick={() => handleRescan()} disabled={isScanning}>
+              <RefreshCw className={`h-4 w-4 mr-2 ${isScanning ? "animate-spin" : ""}`} />
+              {isScanning ? "Scanning..." : "Scan Codebase"}
+            </Button>
+            {lastSyncedAt && (
+              <span className="text-[10px] text-muted-foreground">
+                Last synced {new Date(lastSyncedAt).toLocaleDateString(undefined, { month: "short", day: "numeric" })} at {new Date(lastSyncedAt).toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit" })}
+              </span>
+            )}
+          </div>
 
         <Dialog open={isAddOpen} onOpenChange={setIsAddOpen}>
           <DialogTrigger asChild>
