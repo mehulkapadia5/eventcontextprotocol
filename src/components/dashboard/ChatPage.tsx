@@ -358,6 +358,7 @@ export function ChatPage() {
           onConfidenceChange={handleConfidenceChange}
           initialMessages={initialMessages}
           onMessagesChange={handleMessagesChange}
+          onNewChat={handleNewChat}
         />
       </div>
     </div>

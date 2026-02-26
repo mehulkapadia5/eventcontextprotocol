@@ -39,6 +39,7 @@ interface StepBusinessContextProps {
   onConfidenceChange?: (confidence: number) => void;
   initialMessages?: Msg[];
   onMessagesChange?: (messages: { role: "user" | "assistant"; content: string }[]) => void;
+  onNewChat?: () => void;
 }
 
 function formatBytes(bytes: number): string {
@@ -50,7 +51,7 @@ function formatBytes(bytes: number): string {
 const CHAT_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/business-context-chat`;
 const ANALYTICS_CHAT_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/analytics-chat`;
 
-export function StepBusinessContext({ data, onUpdate, onFinish, onClearContext, isSubmitting, inline, fullPage, repoContext, savedConfidence, onConfidenceChange, initialMessages: initialMessagesProp, onMessagesChange }: StepBusinessContextProps) {
+export function StepBusinessContext({ data, onUpdate, onFinish, onClearContext, isSubmitting, inline, fullPage, repoContext, savedConfidence, onConfidenceChange, initialMessages: initialMessagesProp, onMessagesChange, onNewChat }: StepBusinessContextProps) {
   const hasExistingData = !!(data.product_description || data.audience || data.goals);
   const initialMessage = hasExistingData
     ? "Welcome back! I remember your business context. ✨ You can ask me analytics questions or update your context anytime."
@@ -73,6 +74,7 @@ export function StepBusinessContext({ data, onUpdate, onFinish, onClearContext, 
   const [hasAutoSent, setHasAutoSent] = useState(false);
   const [activeModel, setActiveModel] = useState<string | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const inputRef = useRef<HTMLTextAreaElement>(null);
 
   // Load user's model preference
   useEffect(() => {
@@ -94,6 +96,11 @@ export function StepBusinessContext({ data, onUpdate, onFinish, onClearContext, 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
+
+  // Focus input on mount / reset
+  useEffect(() => {
+    setTimeout(() => inputRef.current?.focus(), 100);
+  }, []);
 
   // Persist messages to parent when they change
   useEffect(() => {
@@ -481,11 +488,20 @@ export function StepBusinessContext({ data, onUpdate, onFinish, onClearContext, 
             )}
             <div className="relative">
               <Textarea
+                ref={inputRef}
                 className="min-h-[80px] max-h-[160px] resize-none rounded-xl pr-12 text-sm"
                 placeholder={contextReady ? "Type a message or click a suggestion..." : "Tell us about your business..."}
                 value={input}
                 onChange={(e) => setInput(e.target.value)}
-                onKeyDown={(e) => { if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) { e.preventDefault(); send(); } }}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" && !e.shiftKey && !e.metaKey && !e.ctrlKey) {
+                    e.preventDefault();
+                    send();
+                  } else if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) {
+                    e.preventDefault();
+                    onNewChat?.();
+                  }
+                }}
                 disabled={isLoading}
               />
               <Button
@@ -557,7 +573,9 @@ export function StepBusinessContext({ data, onUpdate, onFinish, onClearContext, 
               placeholder={contextReady ? "Ask about analytics..." : "Type your answer..."}
               value={input}
               onChange={(e) => setInput(e.target.value)}
-              onKeyDown={(e) => { if (e.key === "Enter" && e.shiftKey) { e.preventDefault(); send(); } }}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); send(); }
+              }}
               disabled={isLoading}
             />
             <Button size="icon" className="absolute bottom-2 right-2 rounded-full h-8 w-8" onClick={send} disabled={isLoading || !input.trim()}>
