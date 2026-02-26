@@ -293,7 +293,7 @@ export function ChatPage() {
               <div
                 key={conv.id}
                 className={cn(
-                  "group flex items-center gap-2 px-3 py-2 rounded-md cursor-pointer text-sm transition-colors",
+                  "group flex items-center gap-2 px-3 py-2 rounded-md cursor-pointer text-sm transition-colors min-w-0",
                   activeConversationId === conv.id
                     ? "bg-accent text-accent-foreground"
                     : "text-muted-foreground hover:bg-accent/50 hover:text-foreground"
@@ -301,11 +301,11 @@ export function ChatPage() {
                 onClick={() => loadConversation(conv.id)}
               >
                 <MessageSquare className="h-4 w-4 shrink-0" />
-                <span className="flex-1 truncate">{conv.title}</span>
+                <span className="flex-1 min-w-0 truncate">{conv.title}</span>
                 <Button
                   variant="ghost"
                   size="icon"
-                  className="h-6 w-6 opacity-0 group-hover:opacity-100 shrink-0"
+                  className="h-6 w-6 shrink-0 opacity-0 group-hover:opacity-100 transition-opacity"
                   onClick={(e) => {
                     e.stopPropagation();
                     handleDeleteConversation(conv.id);
