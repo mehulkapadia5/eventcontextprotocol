@@ -88,6 +88,11 @@ serve(async (req) => {
     const TRACKING_REGEX = [
       /\.(capture|track|logEvent|send)\s*\(\s*['"]([\w.:\-/ ]+)['"]/g,
       /gtag\s*\(\s*['"]event['"]\s*,\s*['"]([\w.:\-/ ]+)['"]/g,
+      /trackEvent\s*\(\s*['"]([\w.:\-/ ]+)['"]/g,
+      /logAnalytics\s*\(\s*['"]([\w.:\-/ ]+)['"]/g,
+      /dataLayer\.push\s*\(\s*\{[^}]*['"]event['"]\s*:\s*['"]([\w.:\-/ ]+)['"]/g,
+      /analytics\.(identify|page|group)\s*\(\s*['"]([\w.:\-/ ]+)['"]/g,
+      /mixpanel\.track\s*\(\s*['"]([\w.:\-/ ]+)['"]/g,
     ];
 
     const sourceFiles = treeFiles
@@ -113,8 +118,8 @@ serve(async (req) => {
                 while ((match = regex.exec(decoded)) !== null) {
                   const eventName = match[2] || match[1];
                   const lineNum = decoded.slice(0, match.index).split("\n").length - 1;
-                  const start = Math.max(0, lineNum - 10);
-                  const end = Math.min(lines.length, lineNum + 10);
+                  const start = Math.max(0, lineNum - 5);
+                  const end = Math.min(lines.length, lineNum + 5);
                   trackingSnippets.push({
                     file: file.path,
                     event: eventName,

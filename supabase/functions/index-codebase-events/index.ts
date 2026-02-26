@@ -14,6 +14,11 @@ const PRIORITY_KEYWORDS = /analytics|tracking|events?|posthog|mixpanel|gtag|segm
 const TRACKING_PATTERNS = [
   /\.(capture|track|logEvent|send)\s*\(\s*['"]([\w.:\-/ ]+)['"]/g,
   /gtag\s*\(\s*['"]event['"]\s*,\s*['"]([\w.:\-/ ]+)['"]/g,
+  /trackEvent\s*\(\s*['"]([\w.:\-/ ]+)['"]/g,
+  /logAnalytics\s*\(\s*['"]([\w.:\-/ ]+)['"]/g,
+  /dataLayer\.push\s*\(\s*\{[^}]*['"]event['"]\s*:\s*['"]([\w.:\-/ ]+)['"]/g,
+  /analytics\.(identify|page|group)\s*\(\s*['"]([\w.:\-/ ]+)['"]/g,
+  /mixpanel\.track\s*\(\s*['"]([\w.:\-/ ]+)['"]/g,
 ];
 
 interface FileEntry {
@@ -70,9 +75,9 @@ function extractTrackingCalls(content: string, filePath: string) {
       const upToMatch = content.slice(0, match.index);
       const lineNum = upToMatch.split("\n").length - 1;
 
-      // Extract ~25 lines before and after
-      const start = Math.max(0, lineNum - 25);
-      const end = Math.min(lines.length, lineNum + 25);
+      // Extract ~5 lines before and after for focused context
+      const start = Math.max(0, lineNum - 5);
+      const end = Math.min(lines.length, lineNum + 5);
       const snippet = lines.slice(start, end).join("\n");
 
       matches.push({ event_name: eventName, snippet, line: lineNum + 1 });
@@ -205,14 +210,19 @@ serve(async (req) => {
         .join("\n\n===\n\n")
         .slice(0, 30000);
 
-      const systemPrompt = `You are a code analysis expert. Given code snippets containing event tracking calls, interpret the business meaning of each event.
+      const systemPrompt = `You are a code analysis expert. Given compact code snippets (~10 lines) around event tracking calls, interpret the business meaning of each event.
+
+Focus on:
+- The function/method name wrapping the tracking call (e.g. handleSignup, onCheckout) to infer user action
+- The property keys passed with the event (e.g. { plan, price, item_id }) for business context
+- Whether the code is in a click handler, form submit, page load, API callback, etc.
 
 Return a JSON object:
 {
   "events": [
     {
       "event_name": "exact_event_name_from_code",
-      "description": "Business meaning of this event",
+      "description": "Business meaning: what user action triggers this and why it matters",
       "category": "one of: acquisition, activation, retention, revenue, core, content, other"
     }
   ]
