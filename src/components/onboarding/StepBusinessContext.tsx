@@ -37,6 +37,8 @@ interface StepBusinessContextProps {
   repoContext?: string | null;
   savedConfidence?: number;
   onConfidenceChange?: (confidence: number) => void;
+  initialMessages?: Msg[];
+  onMessagesChange?: (messages: { role: "user" | "assistant"; content: string }[]) => void;
 }
 
 function formatBytes(bytes: number): string {
@@ -48,7 +50,7 @@ function formatBytes(bytes: number): string {
 const CHAT_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/business-context-chat`;
 const ANALYTICS_CHAT_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/analytics-chat`;
 
-export function StepBusinessContext({ data, onUpdate, onFinish, onClearContext, isSubmitting, inline, fullPage, repoContext, savedConfidence, onConfidenceChange }: StepBusinessContextProps) {
+export function StepBusinessContext({ data, onUpdate, onFinish, onClearContext, isSubmitting, inline, fullPage, repoContext, savedConfidence, onConfidenceChange, initialMessages: initialMessagesProp, onMessagesChange }: StepBusinessContextProps) {
   const hasExistingData = !!(data.product_description || data.audience || data.goals);
   const initialMessage = hasExistingData
     ? "Welcome back! I remember your business context. ✨ You can ask me analytics questions or update your context anytime."
@@ -56,9 +58,11 @@ export function StepBusinessContext({ data, onUpdate, onFinish, onClearContext, 
       ? "Analyzing your codebase... one moment."
       : "Hey! I'd love to learn about your product so we can tailor ECP for you. What does your product do?";
 
-  const [messages, setMessages] = useState<Msg[]>([
-    { role: "assistant", content: initialMessage, timestamp: new Date() },
-  ]);
+  const [messages, setMessages] = useState<Msg[]>(
+    initialMessagesProp && initialMessagesProp.length > 0
+      ? initialMessagesProp
+      : [{ role: "assistant", content: initialMessage, timestamp: new Date() }]
+  );
   const [input, setInput] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const hasExistingContext = !!(data.product_description || data.audience || data.goals);
@@ -90,6 +94,13 @@ export function StepBusinessContext({ data, onUpdate, onFinish, onClearContext, 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
+
+  // Persist messages to parent when they change
+  useEffect(() => {
+    if (onMessagesChange && messages.length > 1) {
+      onMessagesChange(messages.map((m) => ({ role: m.role, content: m.content })));
+    }
+  }, [messages, onMessagesChange]);
 
   // Auto-trigger the AI to analyze codebase on mount when repo context is available
   useEffect(() => {
