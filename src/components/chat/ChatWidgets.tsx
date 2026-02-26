@@ -16,48 +16,77 @@ export function FunnelWidget({ data }: { data: string }) {
     const steps: FunnelStep[] = parsed.steps || parsed;
     if (!Array.isArray(steps) || steps.length === 0) return null;
 
-    const maxVal = Math.max(...steps.map((s) => s.value));
+    const maxVal = steps[0]?.value || 1;
+    const overallConversion = maxVal > 0 ? ((steps[steps.length - 1]?.value || 0) / maxVal * 100).toFixed(2) : "0";
 
     return (
       <Card className="my-3 overflow-hidden border-primary/20">
-        <CardContent className="p-4 space-y-1">
+        <CardContent className="p-4">
           {parsed.title && (
-            <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-3">
+            <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-1">
               {parsed.title}
             </p>
           )}
-          {steps.map((step, i) => {
-            const pct = step.percent ?? (maxVal > 0 ? Math.round((step.value / maxVal) * 100) : 0);
-            const dropoff = i > 0 ? Math.round(((steps[i - 1].value - step.value) / steps[i - 1].value) * 100) : 0;
+          <p className="text-[10px] text-muted-foreground mb-3">
+            Overall · <span className="font-mono font-medium">{overallConversion}%</span>
+          </p>
 
-            return (
-              <div key={i}>
-                {i > 0 && (
-                  <div className="flex items-center gap-1.5 py-1 pl-2">
-                    <ArrowDown className="h-3 w-3 text-muted-foreground" />
-                    <span className="text-[10px] text-destructive font-mono">-{dropoff}%</span>
+          {/* Bar chart */}
+          <div className="flex items-end gap-1.5 h-[140px] mb-2">
+            {steps.map((step, i) => {
+              const pct = maxVal > 0 ? (step.value / maxVal) * 100 : 0;
+              const stepConversion = i > 0 && steps[i - 1].value > 0
+                ? ((step.value / steps[i - 1].value) * 100).toFixed(1)
+                : null;
+
+              return (
+                <div key={i} className="flex-1 flex flex-col items-center gap-1 h-full justify-end">
+                  <div className="text-center">
+                    <span className="text-[10px] font-mono font-semibold text-foreground">
+                      {i === 0 ? "100%" : `${pct.toFixed(1)}%`}
+                    </span>
+                    <p className="text-[9px] font-mono text-muted-foreground">
+                      {step.value.toLocaleString()}
+                    </p>
                   </div>
-                )}
-                <div className="space-y-1">
-                  <div className="flex items-center justify-between text-xs">
-                    <span className="font-medium truncate">{step.label}</span>
-                    <div className="flex items-center gap-2">
-                      <span className="font-mono text-muted-foreground">{step.value.toLocaleString()}</span>
-                      <Badge variant="secondary" className="text-[10px] px-1.5 py-0">
-                        {pct}%
-                      </Badge>
-                    </div>
-                  </div>
-                  <div className="h-2 rounded-full bg-muted overflow-hidden">
-                    <div
-                      className="h-full rounded-full bg-primary transition-all duration-500"
-                      style={{ width: `${pct}%` }}
-                    />
-                  </div>
+                  <div
+                    className="w-full rounded-t-sm bg-primary/70 transition-all duration-500 min-h-[4px]"
+                    style={{ height: `${Math.max(pct, 3)}%` }}
+                  />
                 </div>
+              );
+            })}
+          </div>
+
+          {/* Step labels */}
+          <div className="flex gap-1.5">
+            {steps.map((step, i) => (
+              <div key={i} className="flex-1 text-center">
+                <p className="text-[10px] text-muted-foreground truncate">
+                  <span className="font-semibold">{i + 1}</span>{" "}
+                  <span className="font-medium">{step.label}</span>
+                </p>
               </div>
-            );
-          })}
+            ))}
+          </div>
+
+          {/* Step-to-step conversion rates */}
+          {steps.length > 1 && (
+            <div className="flex gap-1.5 mt-2 pt-2 border-t border-border/50">
+              {steps.map((step, i) => {
+                if (i === 0) return <div key={i} className="flex-1" />;
+                const conv = steps[i - 1].value > 0
+                  ? ((step.value / steps[i - 1].value) * 100).toFixed(1)
+                  : "0";
+                return (
+                  <div key={i} className="flex-1 flex items-center justify-center gap-1 text-[10px]">
+                    <ArrowDown className="h-2.5 w-2.5 text-muted-foreground" />
+                    <span className="font-mono text-destructive">{conv}%</span>
+                  </div>
+                );
+              })}
+            </div>
+          )}
         </CardContent>
       </Card>
     );
