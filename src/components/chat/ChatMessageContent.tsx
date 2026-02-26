@@ -6,15 +6,18 @@ interface ChatMessageContentProps {
 }
 
 const proseClasses = [
-  "prose prose-sm dark:prose-invert max-w-none",
+  "prose prose-sm dark:prose-invert max-w-none font-['Mona_Sans',sans-serif]",
   // Headings
   "[&>h1]:text-lg [&>h1]:font-bold [&>h1]:mt-4 [&>h1]:mb-2",
   "[&>h2]:text-base [&>h2]:font-semibold [&>h2]:mt-3 [&>h2]:mb-1.5",
   "[&>h3]:text-sm [&>h3]:font-semibold [&>h3]:mt-2 [&>h3]:mb-1",
-  // Paragraphs & lists
+  // Paragraphs & lists — tighter bullet styling
   "[&>p]:my-1.5 [&>p]:leading-relaxed",
-  "[&>ul]:my-1.5 [&>ul]:pl-4 [&>ol]:my-1.5 [&>ol]:pl-4",
-  "[&_li]:my-0.5",
+  "[&>ul]:my-1.5 [&>ul]:pl-4 [&>ul]:list-disc [&>ol]:my-1.5 [&>ol]:pl-4 [&>ol]:list-decimal",
+  "[&_li]:my-0.5 [&_li]:leading-snug",
+  "[&_ul]:list-disc [&_ol]:list-decimal",
+  // Nested lists
+  "[&_ul_ul]:mt-0.5 [&_ul_ul]:mb-0 [&_ol_ol]:mt-0.5 [&_ol_ol]:mb-0",
   // Horizontal rules
   "[&>hr]:my-3 [&>hr]:border-border",
   // Bold & emphasis
