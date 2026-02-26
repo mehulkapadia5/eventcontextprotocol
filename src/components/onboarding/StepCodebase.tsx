@@ -3,17 +3,39 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Code2, Check } from "lucide-react";
+import { supabase } from "@/integrations/supabase/client";
+import { toast } from "sonner";
 
 interface StepCodebaseProps {
   data: { github_url?: string; github_pat?: string };
   onUpdate: (data: { github_url?: string; github_pat?: string }) => void;
   onNext: () => void;
   onSkip: () => void;
+  projectId?: string;
 }
 
-export function StepCodebase({ data, onUpdate, onNext, onSkip }: StepCodebaseProps) {
+export function StepCodebase({ data, onUpdate, onNext, onSkip, projectId }: StepCodebaseProps) {
   const [showInput, setShowInput] = useState(false);
   const isConnected = !!data.github_url;
+
+  const handleSave = async () => {
+    setShowInput(false);
+    // Trigger deep codebase scan in background
+    if (data.github_url && projectId) {
+      toast.info("Scanning codebase for events...");
+      try {
+        const resp = await supabase.functions.invoke("index-codebase-events", {
+          body: { project_id: projectId, github_url: data.github_url, github_pat: data.github_pat },
+        });
+        if (resp.error) throw resp.error;
+        const result = resp.data;
+        toast.success(`Found ${result.tracking_calls_found} tracking calls, discovered ${result.events_discovered} events`);
+      } catch (err: any) {
+        console.error("Codebase scan error:", err);
+        toast.error("Codebase scan failed, but your GitHub URL was saved");
+      }
+    }
+  };
 
   return (
     <div className="space-y-6">
@@ -68,7 +90,7 @@ export function StepCodebase({ data, onUpdate, onNext, onSkip }: StepCodebasePro
                 <Button
                   size="sm"
                   disabled={!data.github_url}
-                  onClick={() => setShowInput(false)}
+                  onClick={handleSave}
                 >
                   Save
                 </Button>

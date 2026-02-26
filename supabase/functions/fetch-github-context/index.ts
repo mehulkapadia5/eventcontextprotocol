@@ -81,6 +81,53 @@ serve(async (req) => {
       .map((f: any) => f.path)
       .slice(0, 200);
 
+    // Scan source files for tracking calls
+    const SOURCE_EXTENSIONS = /\.(ts|tsx|js|jsx|py)$/;
+    const SKIP_PATTERNS = /node_modules|dist\/|build\/|\.test\.|\.spec\.|\.d\.ts|\.css$|\.json$|\.md$|\.svg$|\.png$/;
+    const PRIORITY_KEYWORDS = /analytics|tracking|events?|posthog|mixpanel|gtag|segment|amplitude/i;
+    const TRACKING_REGEX = [
+      /\.(capture|track|logEvent|send)\s*\(\s*['"]([\w.:\-/ ]+)['"]/g,
+      /gtag\s*\(\s*['"]event['"]\s*,\s*['"]([\w.:\-/ ]+)['"]/g,
+    ];
+
+    const sourceFiles = treeFiles
+      .filter((f: any) => f.type === "blob" && SOURCE_EXTENSIONS.test(f.path) && !SKIP_PATTERNS.test(f.path));
+    const priorityFiles = sourceFiles.filter((f: any) => PRIORITY_KEYWORDS.test(f.path));
+    const otherFiles = sourceFiles.filter((f: any) => !PRIORITY_KEYWORDS.test(f.path));
+    const filesToScan = [...priorityFiles, ...otherFiles].slice(0, 15);
+
+    const trackingSnippets: Array<{ file: string; event: string; snippet: string }> = [];
+    
+    for (let i = 0; i < filesToScan.length; i += 5) {
+      const batch = filesToScan.slice(i, i + 5);
+      await Promise.allSettled(
+        batch.map(async (file: any) => {
+          try {
+            const content = await fetchGitHub(`${apiBase}/contents/${file.path}`, github_pat);
+            if (content.encoding === "base64" && content.content) {
+              const decoded = atob(content.content.replace(/\n/g, ""));
+              const lines = decoded.split("\n");
+              for (const pattern of TRACKING_REGEX) {
+                const regex = new RegExp(pattern.source, pattern.flags);
+                let match;
+                while ((match = regex.exec(decoded)) !== null) {
+                  const eventName = match[2] || match[1];
+                  const lineNum = decoded.slice(0, match.index).split("\n").length - 1;
+                  const start = Math.max(0, lineNum - 10);
+                  const end = Math.min(lines.length, lineNum + 10);
+                  trackingSnippets.push({
+                    file: file.path,
+                    event: eventName,
+                    snippet: lines.slice(start, end).join("\n"),
+                  });
+                }
+              }
+            }
+          } catch { /* skip unreadable files */ }
+        })
+      );
+    }
+
     const context = {
       repo: `${owner}/${repo}`,
       description: repoInfo.description || "",
@@ -89,6 +136,7 @@ serve(async (req) => {
       default_branch: repoInfo.default_branch,
       file_tree: fileTree,
       key_files: fileContents,
+      tracking_snippets: trackingSnippets.slice(0, 50),
     };
 
     return new Response(JSON.stringify(context), {

@@ -70,6 +70,44 @@ export type Database = {
           },
         ]
       }
+      codebase_files: {
+        Row: {
+          content_snippet: string | null
+          created_at: string | null
+          file_path: string
+          has_tracking_calls: boolean | null
+          id: string
+          last_synced_at: string | null
+          project_id: string
+        }
+        Insert: {
+          content_snippet?: string | null
+          created_at?: string | null
+          file_path: string
+          has_tracking_calls?: boolean | null
+          id?: string
+          last_synced_at?: string | null
+          project_id: string
+        }
+        Update: {
+          content_snippet?: string | null
+          created_at?: string | null
+          file_path?: string
+          has_tracking_calls?: boolean | null
+          id?: string
+          last_synced_at?: string | null
+          project_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "codebase_files_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       event_annotations: {
         Row: {
           category: string | null
