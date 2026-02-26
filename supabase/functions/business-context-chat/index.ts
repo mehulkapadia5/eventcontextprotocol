@@ -58,8 +58,12 @@ A few quick questions:
 - After confirming your initial read, ask ONE focused follow-up about gaps
 - Build on what you know, don't re-ask
 
-CRITICAL: You MUST end EVERY response (including your very first greeting) with a confidence tag on its own line:
-CONFIDENCE:XX
+CRITICAL: You MUST end EVERY response (including your very first greeting) with TWO tags on their own lines:
+
+1. PARTIAL_CONTEXT — Include this in EVERY response. It captures whatever you know so far, even if incomplete. Use null for unknown fields.
+PARTIAL_CONTEXT:{"product_description":"...or null","audience":"...or null","goals":"...or null","stage":"...or null","challenges":"...or null"}
+
+2. CONFIDENCE:XX
 Where XX is a number 0-100 representing how well you understand their business across all 5 dimensions above.
 - 0-15: Know almost nothing (just started, no context at all)
 - 15-30: Have repo context only, made initial interpretation, awaiting any user input
@@ -71,10 +75,12 @@ Where XX is a number 0-100 representing how well you understand their business a
 IMPORTANT: If the user provides comprehensive information covering most dimensions in a single message, jump confidence accordingly. Don't artificially hold it low just because it's early in the conversation. Judge confidence purely by how many dimensions you actually understand.
 A casual greeting like "hey" or "hello" should NOT increase confidence at all.
 
+IMPORTANT: When you have codebase context, you ALREADY know a lot. Start PARTIAL_CONTEXT with inferred values immediately (product_description from README/components, audience from content, etc.). Don't leave fields null when you can infer them from code.
+
 When confidence reaches 85+, respond with your final message summarizing what you learned, followed by:
 CONTEXT_COMPLETE:{"product_description":"...","audience":"...","goals":"...","stage":"...","challenges":"..."}
 
-The CONFIDENCE tag must ALWAYS be the very last line of your response.`;
+The order must always be: message text, then PARTIAL_CONTEXT, then CONFIDENCE (or CONTEXT_COMPLETE then CONFIDENCE).`;
 
 // Provider routing helpers
 interface LlmConfig {
