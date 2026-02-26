@@ -38,6 +38,8 @@ export function HeroSection() {
           <video
             className="w-full"
             controls
+            autoPlay
+            muted
             loop
             playsInline
           >
