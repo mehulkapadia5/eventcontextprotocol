@@ -12,6 +12,7 @@ import mixpanelLogo from "@/assets/mixpanel-logo.png";
 import gaLogo from "@/assets/ga-logo.svg";
 import metabaseLogo from "@/assets/metabase-logo.svg";
 import githubLogo from "@/assets/github-logo.png";
+import supabaseLogo from "@/assets/supabase-logo.png";
 import { Separator } from "@/components/ui/separator";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { supabase } from "@/integrations/supabase/client";
@@ -32,6 +33,9 @@ interface OnboardingData {
     metabase_url?: string;
     metabase_username?: string;
     metabase_password?: string;
+    supabase_url?: string;
+    supabase_anon_key?: string;
+    supabase_table?: string;
   };
   codebase?: { github_url?: string; github_pat?: string };
   business?: { product_description?: string; audience?: string; goals?: string; [key: string]: string | undefined };
@@ -44,9 +48,9 @@ export function OnboardingCards() {
   const [data, setData] = useState<OnboardingData>({});
   const [loading, setLoading] = useState(true);
   const [openDialog, setOpenDialog] = useState<number | null>(null);
-  const [analyticsTab, setAnalyticsTab] = useState<"posthog" | "mixpanel" | "ga" | "metabase">("posthog");
+  const [analyticsTab, setAnalyticsTab] = useState<"posthog" | "mixpanel" | "ga" | "metabase" | "supabase">("posthog");
   const [saving, setSaving] = useState(false);
-  const [connected, setConnected] = useState<"posthog" | "mixpanel" | "ga" | "metabase" | "github" | "project" | null>(null);
+  const [connected, setConnected] = useState<"posthog" | "mixpanel" | "ga" | "metabase" | "supabase" | "github" | "project" | null>(null);
 
   const [posthogKey, setPosthogKey] = useState("");
   const [mixpanelKey, setMixpanelKey] = useState("");
@@ -62,6 +66,9 @@ export function OnboardingCards() {
   const [metabaseUrl, setMetabaseUrl] = useState("");
   const [metabaseUsername, setMetabaseUsername] = useState("");
   const [metabasePassword, setMetabasePassword] = useState("");
+  const [supabaseUrl, setSupabaseUrl] = useState("");
+  const [supabaseAnonKey, setSupabaseAnonKey] = useState("");
+  const [supabaseTable, setSupabaseTable] = useState("events");
   const [newProjectName, setNewProjectName] = useState("");
   const [creatingProject, setCreatingProject] = useState(false);
 
@@ -99,6 +106,9 @@ export function OnboardingCards() {
       setMetabaseUrl(od.analytics?.metabase_url || "");
       setMetabaseUsername(od.analytics?.metabase_username || "");
       setMetabasePassword(od.analytics?.metabase_password || "");
+      setSupabaseUrl(od.analytics?.supabase_url || "");
+      setSupabaseAnonKey(od.analytics?.supabase_anon_key || "");
+      setSupabaseTable(od.analytics?.supabase_table || "events");
       setGithubUrl(od.codebase?.github_url || "");
       setGithubPat(od.codebase?.github_pat || "");
     }
@@ -107,7 +117,7 @@ export function OnboardingCards() {
 
   useEffect(() => { fetchProfile(); }, [fetchProfile]);
 
-  const saveData = async (updated: OnboardingData, connectedType?: "posthog" | "mixpanel" | "ga" | "metabase" | "github" | "project") => {
+  const saveData = async (updated: OnboardingData, connectedType?: "posthog" | "mixpanel" | "ga" | "metabase" | "supabase" | "github" | "project") => {
     if (!session?.user?.id) return;
     setSaving(true);
     try {
@@ -127,7 +137,7 @@ export function OnboardingCards() {
       setData(updated);
 
       // Auto-sync events when analytics keys are saved
-      const isAnalyticsConnect = connectedType === "posthog" || connectedType === "mixpanel" || connectedType === "ga" || connectedType === "metabase";
+      const isAnalyticsConnect = connectedType === "posthog" || connectedType === "mixpanel" || connectedType === "ga" || connectedType === "metabase" || connectedType === "supabase";
       if (isAnalyticsConnect) {
         // Fire and forget - sync in background
         supabase.functions.invoke("fetch-external-events").then(({ data: syncData, error: syncError }) => {
@@ -177,7 +187,7 @@ export function OnboardingCards() {
     }
   };
 
-  const analyticsConnected = !!(data.analytics?.posthog_personal_key || data.analytics?.mixpanel_secret || data.analytics?.ga_property_id || data.analytics?.metabase_url || data.analytics?.posthog_key || data.analytics?.mixpanel_key);
+  const analyticsConnected = !!(data.analytics?.posthog_personal_key || data.analytics?.mixpanel_secret || data.analytics?.ga_property_id || data.analytics?.metabase_url || data.analytics?.supabase_url || data.analytics?.posthog_key || data.analytics?.mixpanel_key);
   const codebaseConnected = !!data.codebase?.github_url;
   const businessDone = !!data.business?.product_description;
 
@@ -186,7 +196,7 @@ export function OnboardingCards() {
   if (loading) return null;
 
   const steps = [
-    { title: "Connect Analytics", description: "Link PostHog, Mixpanel, GA4, or Metabase", logo: <div className="flex items-center gap-2"><img src={posthogLogo} alt="PostHog" className="h-5 w-5" /><img src={mixpanelLogo} alt="Mixpanel" className="h-5 w-5" /><img src={gaLogo} alt="Google Analytics" className="h-5 w-5" /><img src={metabaseLogo} alt="Metabase" className="h-5 w-5" /></div>, done: analyticsConnected },
+    { title: "Connect Analytics", description: "Link PostHog, Mixpanel, GA4, Metabase, or Supabase", logo: <div className="flex items-center gap-2"><img src={posthogLogo} alt="PostHog" className="h-5 w-5" /><img src={mixpanelLogo} alt="Mixpanel" className="h-5 w-5" /><img src={gaLogo} alt="Google Analytics" className="h-5 w-5" /><img src={metabaseLogo} alt="Metabase" className="h-5 w-5" /><img src={supabaseLogo} alt="Supabase" className="h-5 w-5 rounded" /></div>, done: analyticsConnected },
     { title: "Connect Codebase", description: "Link your GitHub repository for code-aware insights", logo: <img src={githubLogo} alt="GitHub" className="h-5 w-5" />, done: codebaseConnected },
     { title: "Business Context", description: "Chat with AI to describe your product", logo: <Sparkles className="h-4 w-4 text-muted-foreground" />, done: businessDone },
     { title: "Create Project", description: "Set up a project to get your API key for event tracking", logo: <Key className="h-4 w-4 text-muted-foreground" />, done: hasProject },
@@ -251,13 +261,13 @@ export function OnboardingCards() {
       {/* Analytics Dialog */}
       <Dialog open={openDialog === 0} onOpenChange={(open) => { if (!open) { setOpenDialog(null); setConnected(null); } }}>
         <DialogContent className="sm:max-w-md">
-      {connected === "posthog" || connected === "mixpanel" || connected === "ga" || connected === "metabase" ? (
+      {connected === "posthog" || connected === "mixpanel" || connected === "ga" || connected === "metabase" || connected === "supabase" ? (
             <div className="flex flex-col items-center gap-3 py-8">
               <div className="w-12 h-12 rounded-full bg-primary/20 flex items-center justify-center">
                 <CheckCircle2 className="h-6 w-6 text-primary" />
               </div>
               <p className="font-semibold text-lg">
-                {connected === "posthog" ? "PostHog" : connected === "mixpanel" ? "Mixpanel" : connected === "metabase" ? "Metabase" : "Google Analytics"} Connected!
+                {connected === "posthog" ? "PostHog" : connected === "mixpanel" ? "Mixpanel" : connected === "metabase" ? "Metabase" : connected === "supabase" ? "Supabase" : "Google Analytics"} Connected!
               </p>
               <p className="text-sm text-muted-foreground">Your analytics data will be synced shortly.</p>
             </div>
@@ -265,10 +275,11 @@ export function OnboardingCards() {
             <>
               <DialogHeader>
                 <DialogTitle className="flex items-center gap-2">
-                  <img src={posthogLogo} alt="PostHog" className="h-5 w-5" />
+                   <img src={posthogLogo} alt="PostHog" className="h-5 w-5" />
                    <img src={mixpanelLogo} alt="Mixpanel" className="h-5 w-5" />
                    <img src={gaLogo} alt="Google Analytics" className="h-5 w-5" />
                    <img src={metabaseLogo} alt="Metabase" className="h-5 w-5" />
+                   <img src={supabaseLogo} alt="Supabase" className="h-5 w-5 rounded" />
                    Connect Analytics
                 </DialogTitle>
                 <DialogDescription>Connect one of the following analytics platforms.</DialogDescription>
@@ -277,7 +288,7 @@ export function OnboardingCards() {
                 <div className="flex items-center justify-between rounded-lg border border-border p-3 bg-muted/30">
                   <div className="text-sm">
                     <span className="font-medium">
-                      {data.analytics?.posthog_personal_key ? "PostHog" : data.analytics?.mixpanel_secret ? "Mixpanel" : data.analytics?.ga_property_id ? "Google Analytics" : data.analytics?.metabase_url ? "Metabase" : data.analytics?.posthog_key ? "PostHog (legacy)" : "Mixpanel (legacy)"}
+                      {data.analytics?.posthog_personal_key ? "PostHog" : data.analytics?.mixpanel_secret ? "Mixpanel" : data.analytics?.ga_property_id ? "Google Analytics" : data.analytics?.metabase_url ? "Metabase" : data.analytics?.supabase_url ? "Supabase" : data.analytics?.posthog_key ? "PostHog (legacy)" : "Mixpanel (legacy)"}
                     </span>
                     <span className="text-muted-foreground ml-1">connected</span>
                   </div>
@@ -299,6 +310,9 @@ export function OnboardingCards() {
                       setMetabaseUrl("");
                       setMetabaseUsername("");
                       setMetabasePassword("");
+                      setSupabaseUrl("");
+                      setSupabaseAnonKey("");
+                      setSupabaseTable("events");
                       saveData(updated);
                       toast.success("Analytics disconnected.");
                     }}
@@ -315,6 +329,7 @@ export function OnboardingCards() {
                     { key: "mixpanel" as const, label: "Mixpanel", logo: mixpanelLogo },
                     { key: "ga" as const, label: "GA4", logo: gaLogo },
                     { key: "metabase" as const, label: "Metabase", logo: metabaseLogo },
+                    { key: "supabase" as const, label: "Supabase", logo: supabaseLogo },
                   ]).map((tab) => (
                     <button
                       key={tab.key}
@@ -479,6 +494,46 @@ export function OnboardingCards() {
                       }, "metabase")}
                     >
                       {saving ? <><Loader2 className="h-4 w-4 animate-spin mr-2" /> Saving...</> : "Connect Metabase"}
+                    </Button>
+                  </div>
+                )}
+
+                {/* Supabase form */}
+                {analyticsTab === "supabase" && (
+                  <div className="space-y-3">
+                    <div className="space-y-2">
+                      <Label>
+                        Supabase Project URL <span className="text-destructive">*</span>
+                      </Label>
+                      <Input placeholder="https://xyzproject.supabase.co" value={supabaseUrl} onChange={(e) => setSupabaseUrl(e.target.value)} />
+                      <p className="text-xs text-muted-foreground">Found in your Supabase project settings → API.</p>
+                    </div>
+                    <div className="space-y-2">
+                      <Label>
+                        Anon / Public Key <span className="text-destructive">*</span>
+                      </Label>
+                      <Input placeholder="eyJhbGciOi..." value={supabaseAnonKey} onChange={(e) => setSupabaseAnonKey(e.target.value)} />
+                      <p className="text-xs text-muted-foreground">The anon/public key from your Supabase project API settings.</p>
+                    </div>
+                    <div className="space-y-2">
+                      <Label>Events Table Name</Label>
+                      <Input placeholder="events" value={supabaseTable} onChange={(e) => setSupabaseTable(e.target.value)} />
+                      <p className="text-xs text-muted-foreground">The table that stores your analytics events. Defaults to "events".</p>
+                    </div>
+                    <Button
+                      className="w-full"
+                      disabled={!supabaseUrl || !supabaseAnonKey || saving}
+                      onClick={() => saveData({
+                        ...data,
+                        analytics: {
+                          ...data.analytics,
+                          supabase_url: supabaseUrl,
+                          supabase_anon_key: supabaseAnonKey,
+                          supabase_table: supabaseTable || "events",
+                        },
+                      }, "supabase")}
+                    >
+                      {saving ? <><Loader2 className="h-4 w-4 animate-spin mr-2" /> Saving...</> : "Connect Supabase"}
                     </Button>
                   </div>
                 )}
