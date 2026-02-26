@@ -393,16 +393,13 @@ export function StepBusinessContext({ data, onUpdate, onFinish, onClearContext, 
             ) : (
               <Brain className="h-4 w-4 text-primary shrink-0" />
             )}
-            <div className="flex-1 space-y-1">
-              <div className="flex items-center justify-between">
-                <span className="text-xs font-medium text-muted-foreground">
-                  {contextReady ? "Analytics Assistant" : "Business Understanding"}
-                </span>
-                {!contextReady && <span className="text-xs font-mono text-primary">{understanding}%</span>}
-                {contextReady && <span className="text-xs font-mono text-primary">Ready</span>}
-              </div>
-              {!contextReady && <Progress value={understanding} className="h-1.5" />}
-            </div>
+            <span className="text-xs font-medium text-muted-foreground">
+              {contextReady ? "Analytics Assistant" : "Business Understanding"}
+            </span>
+            <div className="flex-1" />
+            <Badge variant="outline" className="text-xs font-mono px-2 py-0.5">
+              {contextReady ? "Ready" : `${understanding}%`}
+            </Badge>
             <div className="flex items-center gap-2 shrink-0">
               {activeModel && (
                 <Badge variant="outline" className="text-[10px] font-mono gap-1 px-1.5 py-0.5">
