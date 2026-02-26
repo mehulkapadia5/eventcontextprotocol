@@ -134,13 +134,16 @@ function EditableRow({
   );
 }
 
-export function EventDictionary({ projectId, githubUrl, githubPat }: { projectId: string; githubUrl?: string; githubPat?: string }) {
+export function EventDictionary({ projectId, githubUrl: initialGithubUrl, githubPat: initialGithubPat }: { projectId: string; githubUrl?: string; githubPat?: string }) {
   const [search, setSearch] = useState("");
   const [isAddOpen, setIsAddOpen] = useState(false);
   const [editingName, setEditingName] = useState<string | null>(null);
   const [formData, setFormData] = useState({ event_name: "", description: "", category: "core", status: "verified" });
   const [filterStatus, setFilterStatus] = useState<string>("all");
   const [isScanning, setIsScanning] = useState(false);
+  const [isGithubDialogOpen, setIsGithubDialogOpen] = useState(false);
+  const [scanGithubUrl, setScanGithubUrl] = useState(initialGithubUrl || "");
+  const [scanGithubPat, setScanGithubPat] = useState(initialGithubPat || "");
 
   const queryClient = useQueryClient();
 
@@ -287,13 +290,18 @@ export function EventDictionary({ projectId, githubUrl, githubPat }: { projectId
     upsertMutation.mutate(formData);
   };
 
-  const handleRescan = async () => {
-    if (!githubUrl) return;
+  const handleRescan = async (url?: string, pat?: string) => {
+    const resolvedUrl = url || initialGithubUrl || scanGithubUrl;
+    const resolvedPat = pat || initialGithubPat || scanGithubPat;
+    if (!resolvedUrl) {
+      setIsGithubDialogOpen(true);
+      return;
+    }
     setIsScanning(true);
+    setIsGithubDialogOpen(false);
     try {
-      const { data: { session } } = await supabase.auth.getSession();
       const resp = await supabase.functions.invoke("index-codebase-events", {
-        body: { project_id: projectId, github_url: githubUrl, github_pat: githubPat },
+        body: { project_id: projectId, github_url: resolvedUrl, github_pat: resolvedPat },
       });
       if (resp.error) throw resp.error;
       const result = resp.data;
@@ -361,12 +369,10 @@ export function EventDictionary({ projectId, githubUrl, githubPat }: { projectId
         </div>
 
         <div className="flex items-center gap-2">
-          {githubUrl && (
-            <Button variant="outline" size="sm" onClick={handleRescan} disabled={isScanning}>
-              <RefreshCw className={`h-4 w-4 mr-2 ${isScanning ? "animate-spin" : ""}`} />
-              {isScanning ? "Scanning..." : "Re-scan Codebase"}
-            </Button>
-          )}
+          <Button variant="outline" size="sm" onClick={() => handleRescan()} disabled={isScanning}>
+            <RefreshCw className={`h-4 w-4 mr-2 ${isScanning ? "animate-spin" : ""}`} />
+            {isScanning ? "Scanning..." : "Scan Codebase"}
+          </Button>
 
         <Dialog open={isAddOpen} onOpenChange={setIsAddOpen}>
           <DialogTrigger asChild>
@@ -423,6 +429,30 @@ export function EventDictionary({ projectId, githubUrl, githubPat }: { projectId
               <Button variant="outline" onClick={() => setIsAddOpen(false)}>Cancel</Button>
               <Button onClick={handleAddSave} disabled={upsertMutation.isPending}>
                 {upsertMutation.isPending ? "Saving..." : "Save"}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
+        <Dialog open={isGithubDialogOpen} onOpenChange={setIsGithubDialogOpen}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Connect GitHub Repository</DialogTitle>
+            </DialogHeader>
+            <div className="space-y-4 py-4">
+              <div className="space-y-2">
+                <Label>Repository URL</Label>
+                <Input value={scanGithubUrl} onChange={(e) => setScanGithubUrl(e.target.value)} placeholder="https://github.com/org/repo" />
+              </div>
+              <div className="space-y-2">
+                <Label>Personal Access Token (optional)</Label>
+                <Input type="password" value={scanGithubPat} onChange={(e) => setScanGithubPat(e.target.value)} placeholder="ghp_... (required for private repos)" />
+              </div>
+            </div>
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setIsGithubDialogOpen(false)}>Cancel</Button>
+              <Button onClick={() => handleRescan(scanGithubUrl, scanGithubPat)} disabled={!scanGithubUrl || isScanning}>
+                {isScanning ? "Scanning..." : "Scan"}
               </Button>
             </DialogFooter>
           </DialogContent>
