@@ -43,10 +43,16 @@ function MarkdownBlock({ content }: { content: string }) {
 }
 
 export function ChatMessageContent({ content }: ChatMessageContentProps) {
-  const { text, widgets } = renderMessageWithWidgets(content);
+  // Strip internal protocol tags (SQL queries, etc.) that shouldn't be shown to users
+  const cleanedContent = content
+    .replace(/<SQL>[\s\S]*?<\/SQL>/g, "")
+    .replace(/\n{3,}/g, "\n\n")
+    .trim();
+
+  const { text, widgets } = renderMessageWithWidgets(cleanedContent);
 
   if (widgets.length === 0) {
-    return <MarkdownBlock content={content} />;
+    return <MarkdownBlock content={cleanedContent} />;
   }
 
   const parts = text.split(/%%WIDGET_(\d+)%%/);
