@@ -264,7 +264,7 @@ export function ChatPage() {
   if (loading) return <div className="flex-1" />;
 
   return (
-    <div className="flex h-[calc(100vh-3rem)] -m-6 md:-m-8">
+    <div className="flex h-[calc(100vh)] -m-6 md:-m-8 overflow-hidden">
       {/* Sidebar */}
       <div
         className={cn(
