@@ -339,7 +339,7 @@ export function ChatPage() {
       {/* Main chat area */}
       <div className="flex-1 flex flex-col min-w-0">
         {!sidebarOpen && (
-          <div className="absolute top-[4.5rem] left-[1rem] md:left-[17.5rem] z-10">
+          <div className="border-b border-border px-3 py-2">
             <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setSidebarOpen(true)}>
               <PanelLeft className="h-4 w-4" />
             </Button>
