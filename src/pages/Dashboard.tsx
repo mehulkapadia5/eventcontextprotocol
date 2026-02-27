@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Routes, Route, NavLink } from "react-router-dom";
+import { Routes, Route, NavLink, useLocation } from "react-router-dom";
 import { useAuth } from "@/hooks/use-auth";
 import { useAdmin } from "@/hooks/use-admin";
 import { Button } from "@/components/ui/button";
@@ -15,6 +15,8 @@ export default function Dashboard() {
   const { signOut } = useAuth();
   const { isAdmin } = useAdmin();
   const [sidebarOpen, setSidebarOpen] = useState(true);
+  const location = useLocation();
+  const isChatPage = location.pathname === "/dashboard" || location.pathname === "/dashboard/";
 
   const linkClass = ({ isActive }: { isActive: boolean }) =>
     `flex items-center gap-2 px-3 py-2 text-sm rounded-md transition-colors ${
@@ -73,7 +75,7 @@ export default function Dashboard() {
       </aside>
 
       <main className="flex-1 p-6 md:p-8 overflow-auto relative">
-        {!sidebarOpen && (
+        {!sidebarOpen && !isChatPage && (
           <Button
             variant="ghost"
             size="icon"
