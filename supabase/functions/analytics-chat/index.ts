@@ -112,7 +112,8 @@ Guidelines:
 - ALWAYS query first, interpret second
 - Use business context to give tailored advice
 - Be practical and actionable
-- If a query returns no data, say so honestly`;
+- If a query returns no data, say so honestly
+- CRITICAL FORMATTING: When writing markdown tables, ALWAYS put each row on its OWN line. Never combine rows onto a single line. Always include a blank line before and after the table block.`;
 
 // Provider routing helpers
 interface LlmConfig {
