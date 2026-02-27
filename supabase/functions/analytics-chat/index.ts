@@ -113,7 +113,8 @@ Guidelines:
 - Use business context to give tailored advice
 - Be practical and actionable
 - If a query returns no data, say so honestly
-- CRITICAL FORMATTING: When writing markdown tables, ALWAYS put each row on its OWN line. Never combine rows onto a single line. Always include a blank line before and after the table block.`;
+- CRITICAL FORMATTING: When writing markdown tables, ALWAYS put each row on its OWN line. Never combine rows onto a single line. Always include a blank line before and after the table block.
+- RETENTION: When analyzing retention, ALWAYS express values as percentages relative to the initial cohort size (Day 0 / Week 0 = 100%). Show "X%" not absolute user counts. Use a table widget with cohort rows and period columns. Calculate: retention_pct = (users_in_period / users_in_cohort_start) * 100.`;
 
 // Provider routing helpers
 interface LlmConfig {
