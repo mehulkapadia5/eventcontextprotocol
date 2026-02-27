@@ -8,6 +8,7 @@ import { Activity, BarChart3, CalendarDays, Loader2, RefreshCw, Users } from "lu
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, LineChart, Line } from "recharts";
 import { OnboardingCards } from "@/components/onboarding/OnboardingCards";
 import { toast } from "sonner";
+
 export function DashboardOverview() {
   const { session } = useAuth();
   const queryClient = useQueryClient();
@@ -48,6 +49,7 @@ export function DashboardOverview() {
       setSyncing(false);
     }
   };
+
   const { data: projects } = useQuery({
     queryKey: ["projects"],
     queryFn: async () => {
@@ -59,57 +61,101 @@ export function DashboardOverview() {
 
   const projectIds = projects?.map((p) => p.id) ?? [];
 
-  const { data: events } = useQuery({
-    queryKey: ["events-overview", projectIds],
+  // Aggregate: total events count
+  const { data: totalEvents } = useQuery({
+    queryKey: ["events-overview-total", projectIds],
+    enabled: projectIds.length > 0,
+    queryFn: async () => {
+      const { count, error } = await supabase
+        .from("events")
+        .select("*", { count: "exact", head: true })
+        .in("project_id", projectIds);
+      if (error) throw error;
+      return count ?? 0;
+    },
+  });
+
+  // Aggregate: unique users
+  const { data: uniqueUsers } = useQuery({
+    queryKey: ["events-overview-users", projectIds],
+    enabled: projectIds.length > 0,
+    queryFn: async () => {
+      const { data, error } = await supabase.rpc("execute_readonly_query", {
+        query_text: `SELECT COUNT(DISTINCT user_identifier) as cnt FROM events WHERE project_id IN (${projectIds.map((id) => `'${id}'`).join(",")}) AND user_identifier IS NOT NULL`,
+      });
+      if (error) throw error;
+      return (data as any)?.[0]?.cnt ?? 0;
+    },
+  });
+
+  // Aggregate: events today
+  const { data: eventsToday } = useQuery({
+    queryKey: ["events-overview-today", projectIds],
+    enabled: projectIds.length > 0,
+    queryFn: async () => {
+      const todayStart = new Date();
+      todayStart.setHours(0, 0, 0, 0);
+      const { count, error } = await supabase
+        .from("events")
+        .select("*", { count: "exact", head: true })
+        .in("project_id", projectIds)
+        .gte("timestamp", todayStart.toISOString());
+      if (error) throw error;
+      return count ?? 0;
+    },
+  });
+
+  // Aggregate: top events (grouped count)
+  const { data: topEventsData } = useQuery({
+    queryKey: ["events-overview-top", projectIds],
+    enabled: projectIds.length > 0,
+    queryFn: async () => {
+      const { data, error } = await supabase.rpc("execute_readonly_query", {
+        query_text: `SELECT event_name as name, COUNT(*) as count FROM events WHERE project_id IN (${projectIds.map((id) => `'${id}'`).join(",")}) GROUP BY event_name ORDER BY count DESC LIMIT 10`,
+      });
+      if (error) throw error;
+      return (data as any[]) ?? [];
+    },
+  });
+
+  // Aggregate: daily volume last 7 days
+  const { data: volumeData } = useQuery({
+    queryKey: ["events-overview-volume", projectIds],
+    enabled: projectIds.length > 0,
+    queryFn: async () => {
+      const { data, error } = await supabase.rpc("execute_readonly_query", {
+        query_text: `SELECT to_char(timestamp, 'MM-DD') as date, COUNT(*) as count FROM events WHERE project_id IN (${projectIds.map((id) => `'${id}'`).join(",")}) AND timestamp >= now() - interval '7 days' GROUP BY to_char(timestamp, 'MM-DD') ORDER BY date`,
+      });
+      if (error) throw error;
+      return (data as any[]) ?? [];
+    },
+  });
+
+  // Recent events for display table only
+  const { data: recentEvents } = useQuery({
+    queryKey: ["events-overview-recent", projectIds],
     enabled: projectIds.length > 0,
     queryFn: async () => {
       const { data, error } = await supabase
         .from("events")
-        .select("*")
+        .select("id, event_name, user_identifier, timestamp")
         .in("project_id", projectIds)
         .order("timestamp", { ascending: false })
-        .limit(1000);
+        .limit(20);
       if (error) throw error;
       return data;
     },
   });
 
-  const allEvents = events ?? [];
-  const totalEvents = allEvents.length;
-  const uniqueUsers = new Set(allEvents.map((e) => e.user_identifier).filter(Boolean)).size;
-
-  const today = new Date().toDateString();
-  const eventsToday = allEvents.filter((e) => new Date(e.timestamp).toDateString() === today).length;
-
-  // Top event
-  const eventCounts: Record<string, number> = {};
-  allEvents.forEach((e) => {
-    eventCounts[e.event_name] = (eventCounts[e.event_name] || 0) + 1;
-  });
-  const topEvent = Object.entries(eventCounts).sort((a, b) => b[1] - a[1])[0];
-
-  // Chart: top 10 events
-  const topEventsChart = Object.entries(eventCounts)
-    .sort((a, b) => b[1] - a[1])
-    .slice(0, 10)
-    .map(([name, count]) => ({ name, count }));
-
-  // Chart: events over last 7 days
-  const last7 = Array.from({ length: 7 }, (_, i) => {
-    const d = new Date();
-    d.setDate(d.getDate() - (6 - i));
-    return d.toISOString().split("T")[0];
-  });
-  const volumeChart = last7.map((date) => ({
-    date: date.slice(5),
-    count: allEvents.filter((e) => e.timestamp.startsWith(date)).length,
-  }));
+  const topEvent = topEventsData?.[0]?.name ?? "—";
+  const topEventsChart = (topEventsData ?? []).map((e: any) => ({ name: e.name, count: Number(e.count) }));
+  const volumeChart = (volumeData ?? []).map((e: any) => ({ date: e.date, count: Number(e.count) }));
 
   const stats = [
-    { label: "Total Events", value: totalEvents, icon: Activity },
-    { label: "Unique Users", value: uniqueUsers, icon: Users },
-    { label: "Events Today", value: eventsToday, icon: CalendarDays },
-    { label: "Top Event", value: topEvent?.[0] ?? "—", icon: BarChart3 },
+    { label: "Total Events", value: totalEvents ?? 0, icon: Activity },
+    { label: "Unique Users", value: uniqueUsers ?? 0, icon: Users },
+    { label: "Events Today", value: eventsToday ?? 0, icon: CalendarDays },
+    { label: "Top Event", value: topEvent, icon: BarChart3 },
   ];
 
   return (
@@ -198,7 +244,7 @@ export function DashboardOverview() {
         </CardHeader>
         <CardContent>
           <div className="space-y-2 max-h-64 overflow-auto">
-            {allEvents.slice(0, 20).map((event) => (
+            {(recentEvents ?? []).map((event) => (
               <div key={event.id} className="flex items-center justify-between border-b border-border py-2 text-sm last:border-0">
                 <div className="flex items-center gap-3">
                   <span className="font-mono font-medium">{event.event_name}</span>
@@ -211,7 +257,7 @@ export function DashboardOverview() {
                 </span>
               </div>
             ))}
-            {allEvents.length === 0 && (
+            {(!recentEvents || recentEvents.length === 0) && (
               <p className="text-center text-muted-foreground py-4">No events yet.</p>
             )}
           </div>
