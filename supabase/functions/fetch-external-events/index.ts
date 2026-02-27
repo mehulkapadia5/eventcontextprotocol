@@ -149,10 +149,10 @@ serve(async (req) => {
       });
     }
 
-    // Get target user's first project
+    // Get target user's first project (including last_synced_at)
     const { data: projects } = await adminSupabase
       .from("projects")
-      .select("id")
+      .select("id, last_synced_at")
       .eq("user_id", targetUserId)
       .order("created_at", { ascending: true })
       .limit(1);
@@ -165,9 +165,11 @@ serve(async (req) => {
     }
 
     const projectId = projects[0].id;
+    const lastSyncedAt = projects[0].last_synced_at as string | null;
 
     let fetchedEvents: any[] = [];
     let source = "";
+    const PAGE_SIZE = 500;
 
     // --- PostHog ---
     if (analytics.posthog_personal_key && analytics.posthog_project_id) {
@@ -176,39 +178,47 @@ serve(async (req) => {
       const projId = analytics.posthog_project_id;
       const apiKey = analytics.posthog_personal_key;
 
-      const res = await fetch(`${phHost}/api/projects/${projId}/query`, {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${apiKey}`,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          query: {
-            kind: "HogQLQuery",
-            query: `SELECT event, distinct_id, properties, timestamp FROM events ORDER BY timestamp DESC LIMIT 500`,
+      let offset = 0;
+      let hasMore = true;
+      while (hasMore) {
+        const whereClause = lastSyncedAt
+          ? `WHERE timestamp > '${lastSyncedAt}'`
+          : "";
+        const query = `SELECT event, distinct_id, properties, timestamp FROM events ${whereClause} ORDER BY timestamp DESC LIMIT ${PAGE_SIZE} OFFSET ${offset}`;
+
+        const res = await fetch(`${phHost}/api/projects/${projId}/query`, {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${apiKey}`,
+            "Content-Type": "application/json",
           },
-        }),
-      });
+          body: JSON.stringify({ query: { kind: "HogQLQuery", query } }),
+        });
 
-      if (!res.ok) {
-        const errText = await res.text();
-        console.error("PostHog API error:", res.status, errText);
-        return new Response(
-          JSON.stringify({ error: `PostHog API error (${res.status}): ${errText}` }),
-          { status: 502, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-        );
+        if (!res.ok) {
+          const errText = await res.text();
+          console.error("PostHog API error:", res.status, errText);
+          return new Response(
+            JSON.stringify({ error: `PostHog API error (${res.status}): ${errText}` }),
+            { status: 502, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+          );
+        }
+
+        const phData = await res.json();
+        const rows = phData.results || [];
+        const mapped = rows.map((row: any[]) => ({
+          project_id: projectId,
+          event_name: row[0] || "unknown",
+          user_identifier: row[1] || null,
+          properties: typeof row[2] === "string" ? JSON.parse(row[2]) : (row[2] || {}),
+          timestamp: row[3] || new Date().toISOString(),
+          page_url: (typeof row[2] === "object" && row[2]?.$current_url) || null,
+        }));
+        fetchedEvents.push(...mapped);
+
+        hasMore = rows.length >= PAGE_SIZE;
+        offset += PAGE_SIZE;
       }
-
-      const phData = await res.json();
-      const rows = phData.results || [];
-      fetchedEvents = rows.map((row: any[]) => ({
-        project_id: projectId,
-        event_name: row[0] || "unknown",
-        user_identifier: row[1] || null,
-        properties: typeof row[2] === "string" ? JSON.parse(row[2]) : (row[2] || {}),
-        timestamp: row[3] || new Date().toISOString(),
-        page_url: (typeof row[2] === "object" && row[2]?.$current_url) || null,
-      }));
     }
 
     // --- Mixpanel ---
@@ -218,10 +228,12 @@ serve(async (req) => {
       const mpSecret = analytics.mixpanel_secret;
 
       const toDate = new Date().toISOString().split("T")[0];
-      const fromDate = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString().split("T")[0];
+      const fromDate = lastSyncedAt
+        ? lastSyncedAt.split("T")[0]
+        : new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString().split("T")[0];
 
       const basicAuth = btoa(`${mpSecret}:`);
-      const url = `https://data.mixpanel.com/api/2.0/export?from_date=${fromDate}&to_date=${toDate}&limit=500&project_id=${mpProjectId}`;
+      const url = `https://data.mixpanel.com/api/2.0/export?from_date=${fromDate}&to_date=${toDate}&project_id=${mpProjectId}`;
 
       const res = await fetch(url, {
         headers: {
@@ -269,7 +281,9 @@ serve(async (req) => {
         const propertyId = analytics.ga_property_id;
 
         const toDate = new Date().toISOString().split("T")[0];
-        const fromDate = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString().split("T")[0];
+        const fromDate = lastSyncedAt
+          ? lastSyncedAt.split("T")[0]
+          : new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString().split("T")[0];
 
         const gaRes = await fetch(
           `https://analyticsdata.googleapis.com/v1beta/properties/${propertyId}:runReport`,
@@ -349,11 +363,17 @@ serve(async (req) => {
         const extSupabase = createClient(analytics.supabase_url, analytics.supabase_anon_key);
         const tableName = analytics.supabase_table || "events";
 
-        const { data: extEvents, error: extError } = await extSupabase
+        let query = extSupabase
           .from(tableName)
           .select("*")
           .order("created_at", { ascending: false })
           .limit(500);
+
+        if (lastSyncedAt) {
+          query = query.gt("created_at", lastSyncedAt);
+        }
+
+        const { data: extEvents, error: extError } = await query;
 
         if (extError) {
           console.error("Supabase external DB error:", extError);
@@ -383,26 +403,40 @@ serve(async (req) => {
     }
 
     if (fetchedEvents.length === 0) {
+      // Still update last_synced_at even if no new events
+      await adminSupabase.from("projects").update({ last_synced_at: new Date().toISOString() }).eq("id", projectId);
       return new Response(
         JSON.stringify({
           success: true,
           source: source || "none",
           count: 0,
-          message: "No events found or no valid read API keys configured.",
+          message: "No new events found.",
         }),
         { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
-    const { error: insertError } = await adminSupabase.from("events").insert(fetchedEvents);
+    // Upsert with deduplication
+    const { error: insertError } = await adminSupabase
+      .from("events")
+      .upsert(fetchedEvents, {
+        onConflict: "project_id,event_name,user_identifier,timestamp",
+        ignoreDuplicates: true,
+      });
 
     if (insertError) {
-      console.error("Insert error:", insertError);
+      console.error("Upsert error:", insertError);
       return new Response(JSON.stringify({ error: "Failed to store events" }), {
         status: 500,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
+
+    // Update last_synced_at
+    await adminSupabase
+      .from("projects")
+      .update({ last_synced_at: new Date().toISOString() })
+      .eq("id", projectId);
 
     return new Response(
       JSON.stringify({ success: true, source, count: fetchedEvents.length }),

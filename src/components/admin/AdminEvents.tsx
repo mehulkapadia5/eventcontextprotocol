@@ -18,6 +18,17 @@ export function AdminEvents() {
   const [syncingUserId, setSyncingUserId] = useState<string | null>(null);
   const [syncingAll, setSyncingAll] = useState(false);
 
+  // Total count via aggregate
+  const { data: totalCount } = useQuery({
+    queryKey: ["admin-events-total-count"],
+    queryFn: async () => {
+      const { count, error } = await supabase.from("events").select("*", { count: "exact", head: true });
+      if (error) throw error;
+      return count ?? 0;
+    },
+  });
+
+  // Display rows (limited to 500 for table display)
   const { data: events, isLoading } = useQuery({
     queryKey: ["admin-events-all"],
     queryFn: async () => {
@@ -131,7 +142,7 @@ export function AdminEvents() {
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-bold">Events</h1>
         <div className="flex items-center gap-2">
-          <Badge variant="secondary">{filteredEvents.length} / {events?.length ?? 0} events</Badge>
+          <Badge variant="secondary">{filteredEvents.length} shown / {totalCount ?? 0} total events</Badge>
           {usersWithAnalytics.length > 0 && (
             <Button variant="outline" size="sm" onClick={handleSyncAll} disabled={syncingAll}>
               {syncingAll ? (
