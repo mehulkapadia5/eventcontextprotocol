@@ -25,16 +25,16 @@ export default function Dashboard() {
           <span className="font-mono font-bold text-lg">ECP</span>
         </div>
         <NavLink to="/dashboard" end className={linkClass}>
+          <MessageSquare className="h-4 w-4" />
+          Chat
+        </NavLink>
+        <NavLink to="/dashboard/overview" className={linkClass}>
           <LayoutDashboard className="h-4 w-4" />
           Overview
         </NavLink>
         <NavLink to="/dashboard/events" className={linkClass}>
           <Search className="h-4 w-4" />
           Events Explorer
-        </NavLink>
-        <NavLink to="/dashboard/chat" className={linkClass}>
-          <MessageSquare className="h-4 w-4" />
-          Chat
         </NavLink>
         <NavLink to="/dashboard/context" className={linkClass}>
           <FileText className="h-4 w-4" />
@@ -60,9 +60,9 @@ export default function Dashboard() {
 
       <main className="flex-1 p-6 md:p-8 overflow-auto">
         <Routes>
-          <Route index element={<DashboardOverview />} />
+          <Route index element={<ChatPage />} />
+          <Route path="overview" element={<DashboardOverview />} />
           <Route path="events" element={<EventsExplorer />} />
-          <Route path="chat" element={<ChatPage />} />
           <Route path="context" element={<ContextPage />} />
           <Route path="settings" element={<SettingsPage />} />
         </Routes>
