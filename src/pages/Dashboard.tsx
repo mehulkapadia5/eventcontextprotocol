@@ -35,19 +35,25 @@ export default function Dashboard() {
         )}
       >
         {/* Header */}
-        <div className={cn(
-          "flex items-center mb-4",
-          sidebarOpen ? "gap-2 px-3 py-2 justify-between" : "justify-center py-2"
-        )}>
-          <div className="flex items-center gap-2">
-            <Activity className="h-5 w-5 text-primary shrink-0" />
-            {sidebarOpen && <span className="font-mono font-bold text-lg">ECP</span>}
-          </div>
+        <div
+          className={cn(
+            "flex items-center mb-4",
+            sidebarOpen ? "gap-2 px-3 py-2 justify-between" : "justify-center py-2"
+          )}
+        >
+          {sidebarOpen && (
+            <div className="flex items-center gap-2">
+              <Activity className="h-5 w-5 text-primary shrink-0" />
+              <span className="font-mono font-bold text-lg">ECP</span>
+            </div>
+          )}
+
           <Button
             variant="ghost"
             size="icon"
             className="h-8 w-8 shrink-0"
             onClick={() => setSidebarOpen(!sidebarOpen)}
+            title={sidebarOpen ? "Collapse sidebar" : "Expand sidebar"}
           >
             {sidebarOpen ? <PanelLeftClose className="h-4 w-4" /> : <PanelLeft className="h-4 w-4" />}
           </Button>
