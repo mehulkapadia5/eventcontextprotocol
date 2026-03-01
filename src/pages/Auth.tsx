@@ -26,10 +26,23 @@ export default function Auth() {
         navigate("/dashboard", { replace: true });
       }
     });
-    // Also check if already logged in
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      if (session) navigate("/dashboard", { replace: true });
-    });
+
+    // Check if already logged in — retry after a short delay to allow
+    // the Supabase client to finish processing OAuth hash tokens
+    const checkSession = async () => {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (session) {
+        navigate("/dashboard", { replace: true });
+      } else if (window.location.hash.includes("access_token")) {
+        // Hash tokens present but session not ready yet — retry once
+        setTimeout(async () => {
+          const { data: { session: s } } = await supabase.auth.getSession();
+          if (s) navigate("/dashboard", { replace: true });
+        }, 1000);
+      }
+    };
+    checkSession();
+
     return () => subscription.unsubscribe();
   }, [navigate]);
 
