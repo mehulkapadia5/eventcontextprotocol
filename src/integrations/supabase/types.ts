@@ -209,6 +209,53 @@ export type Database = {
         }
         Relationships: []
       }
+      sync_cursors: {
+        Row: {
+          id: string
+          project_id: string
+          source: string
+          last_synced_at: string
+          last_event_timestamp: string | null
+          last_offset: number
+          total_synced: number
+          metadata: Json | null
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          project_id: string
+          source: string
+          last_synced_at?: string
+          last_event_timestamp?: string | null
+          last_offset?: number
+          total_synced?: number
+          metadata?: Json | null
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          project_id?: string
+          source?: string
+          last_synced_at?: string
+          last_event_timestamp?: string | null
+          last_offset?: number
+          total_synced?: number
+          metadata?: Json | null
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "sync_cursors_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       user_roles: {
         Row: {
           created_at: string
@@ -236,6 +283,58 @@ export type Database = {
     }
     Functions: {
       execute_readonly_query: { Args: { query_text: string }; Returns: Json }
+      get_dashboard_stats: {
+        Args: { p_project_ids: string[] }
+        Returns: Json
+      }
+      get_event_instances: {
+        Args: {
+          p_project_ids: string[]
+          p_event_name: string
+          p_limit?: number
+          p_offset?: number
+        }
+        Returns: Json
+      }
+      get_event_property_schema: {
+        Args: {
+          p_project_ids: string[]
+          p_event_name: string
+          p_sample_size?: number
+        }
+        Returns: Json
+      }
+      get_event_volume: {
+        Args: {
+          p_project_ids: string[]
+          p_days?: number
+        }
+        Returns: Json
+      }
+      get_top_events: {
+        Args: {
+          p_project_ids: string[]
+          p_limit?: number
+        }
+        Returns: Json
+      }
+      get_unique_events: {
+        Args: {
+          p_project_ids: string[]
+          p_search?: string | null
+          p_sort_by?: string
+          p_limit?: number
+          p_offset?: number
+        }
+        Returns: Json
+      }
+      get_unique_events_count: {
+        Args: {
+          p_project_ids: string[]
+          p_search?: string | null
+        }
+        Returns: number
+      }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]

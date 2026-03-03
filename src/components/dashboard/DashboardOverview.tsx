@@ -38,8 +38,14 @@ export function DashboardOverview() {
       if (data?.error) {
         toast.error(data.error);
       } else {
-        toast.success(`Synced ${data.count} events from ${data.source}`);
-        queryClient.invalidateQueries({ queryKey: ["events-overview"] });
+        const msg = data.duplicates_skipped
+          ? `Synced ${data.count} new events from ${data.source} (${data.duplicates_skipped} duplicates skipped)`
+          : `Synced ${data.count} events from ${data.source}`;
+        toast.success(msg);
+        queryClient.invalidateQueries({ queryKey: ["dashboard-stats"] });
+        queryClient.invalidateQueries({ queryKey: ["top-events-chart"] });
+        queryClient.invalidateQueries({ queryKey: ["event-volume-chart"] });
+        queryClient.invalidateQueries({ queryKey: ["recent-events"] });
         queryClient.invalidateQueries({ queryKey: ["events-explorer"] });
       }
     } catch (err: any) {
@@ -48,6 +54,7 @@ export function DashboardOverview() {
       setSyncing(false);
     }
   };
+
   const { data: projects } = useQuery({
     queryKey: ["projects"],
     queryFn: async () => {
@@ -59,57 +66,77 @@ export function DashboardOverview() {
 
   const projectIds = projects?.map((p) => p.id) ?? [];
 
-  const { data: events } = useQuery({
-    queryKey: ["events-overview", projectIds],
+  // Server-side aggregation: dashboard stats
+  const { data: stats } = useQuery({
+    queryKey: ["dashboard-stats", projectIds],
+    enabled: projectIds.length > 0,
+    queryFn: async () => {
+      const { data, error } = await supabase.rpc("get_dashboard_stats", {
+        p_project_ids: projectIds,
+      });
+      if (error) throw error;
+      return data as {
+        total_events: number;
+        unique_users: number;
+        events_today: number;
+        top_event_name: string | null;
+        top_event_count: number;
+      };
+    },
+  });
+
+  // Server-side aggregation: top events chart
+  const { data: topEventsChart } = useQuery({
+    queryKey: ["top-events-chart", projectIds],
+    enabled: projectIds.length > 0,
+    queryFn: async () => {
+      const { data, error } = await supabase.rpc("get_top_events", {
+        p_project_ids: projectIds,
+        p_limit: 10,
+      });
+      if (error) throw error;
+      return (data as { name: string; count: number; unique_users: number }[]) ?? [];
+    },
+  });
+
+  // Server-side aggregation: event volume over 7 days
+  const { data: volumeChart } = useQuery({
+    queryKey: ["event-volume-chart", projectIds],
+    enabled: projectIds.length > 0,
+    queryFn: async () => {
+      const { data, error } = await supabase.rpc("get_event_volume", {
+        p_project_ids: projectIds,
+        p_days: 7,
+      });
+      if (error) throw error;
+      return ((data as { date: string; count: number }[]) ?? []).map((d) => ({
+        date: d.date.slice(5),
+        count: d.count,
+      }));
+    },
+  });
+
+  // Recent events - small query, just 20 for the list
+  const { data: recentEvents } = useQuery({
+    queryKey: ["recent-events", projectIds],
     enabled: projectIds.length > 0,
     queryFn: async () => {
       const { data, error } = await supabase
         .from("events")
-        .select("*")
+        .select("id, event_name, user_identifier, timestamp")
         .in("project_id", projectIds)
         .order("timestamp", { ascending: false })
-        .limit(1000);
+        .limit(20);
       if (error) throw error;
       return data;
     },
   });
 
-  const allEvents = events ?? [];
-  const totalEvents = allEvents.length;
-  const uniqueUsers = new Set(allEvents.map((e) => e.user_identifier).filter(Boolean)).size;
-
-  const today = new Date().toDateString();
-  const eventsToday = allEvents.filter((e) => new Date(e.timestamp).toDateString() === today).length;
-
-  // Top event
-  const eventCounts: Record<string, number> = {};
-  allEvents.forEach((e) => {
-    eventCounts[e.event_name] = (eventCounts[e.event_name] || 0) + 1;
-  });
-  const topEvent = Object.entries(eventCounts).sort((a, b) => b[1] - a[1])[0];
-
-  // Chart: top 10 events
-  const topEventsChart = Object.entries(eventCounts)
-    .sort((a, b) => b[1] - a[1])
-    .slice(0, 10)
-    .map(([name, count]) => ({ name, count }));
-
-  // Chart: events over last 7 days
-  const last7 = Array.from({ length: 7 }, (_, i) => {
-    const d = new Date();
-    d.setDate(d.getDate() - (6 - i));
-    return d.toISOString().split("T")[0];
-  });
-  const volumeChart = last7.map((date) => ({
-    date: date.slice(5),
-    count: allEvents.filter((e) => e.timestamp.startsWith(date)).length,
-  }));
-
-  const stats = [
-    { label: "Total Events", value: totalEvents, icon: Activity },
-    { label: "Unique Users", value: uniqueUsers, icon: Users },
-    { label: "Events Today", value: eventsToday, icon: CalendarDays },
-    { label: "Top Event", value: topEvent?.[0] ?? "—", icon: BarChart3 },
+  const statCards = [
+    { label: "Total Events", value: stats?.total_events?.toLocaleString() ?? "0", icon: Activity },
+    { label: "Unique Users", value: stats?.unique_users?.toLocaleString() ?? "0", icon: Users },
+    { label: "Events Today", value: stats?.events_today?.toLocaleString() ?? "0", icon: CalendarDays },
+    { label: "Top Event", value: stats?.top_event_name ?? "—", icon: BarChart3 },
   ];
 
   return (
@@ -138,7 +165,7 @@ export function DashboardOverview() {
       )}
 
       <div className="grid gap-4 grid-cols-2 lg:grid-cols-4">
-        {stats.map((s) => (
+        {statCards.map((s) => (
           <Card key={s.label}>
             <CardHeader className="flex flex-row items-center justify-between pb-2">
               <CardTitle className="text-sm font-medium text-muted-foreground">{s.label}</CardTitle>
@@ -158,7 +185,7 @@ export function DashboardOverview() {
           </CardHeader>
           <CardContent className="h-64">
             <ResponsiveContainer width="100%" height="100%">
-              <LineChart data={volumeChart}>
+              <LineChart data={volumeChart ?? []}>
                 <XAxis dataKey="date" stroke="hsl(var(--muted-foreground))" fontSize={12} />
                 <YAxis stroke="hsl(var(--muted-foreground))" fontSize={12} />
                 <Tooltip
@@ -177,7 +204,7 @@ export function DashboardOverview() {
           </CardHeader>
           <CardContent className="h-64">
             <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={topEventsChart} layout="vertical">
+              <BarChart data={topEventsChart ?? []} layout="vertical">
                 <XAxis type="number" stroke="hsl(var(--muted-foreground))" fontSize={12} />
                 <YAxis type="category" dataKey="name" stroke="hsl(var(--muted-foreground))" fontSize={12} width={120} />
                 <Tooltip
@@ -198,7 +225,7 @@ export function DashboardOverview() {
         </CardHeader>
         <CardContent>
           <div className="space-y-2 max-h-64 overflow-auto">
-            {allEvents.slice(0, 20).map((event) => (
+            {(recentEvents ?? []).map((event) => (
               <div key={event.id} className="flex items-center justify-between border-b border-border py-2 text-sm last:border-0">
                 <div className="flex items-center gap-3">
                   <span className="font-mono font-medium">{event.event_name}</span>
@@ -211,7 +238,7 @@ export function DashboardOverview() {
                 </span>
               </div>
             ))}
-            {allEvents.length === 0 && (
+            {(!recentEvents || recentEvents.length === 0) && (
               <p className="text-center text-muted-foreground py-4">No events yet.</p>
             )}
           </div>

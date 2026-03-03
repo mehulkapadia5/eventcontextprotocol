@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useCallback } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Input } from "@/components/ui/input";
@@ -8,7 +8,8 @@ import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sh
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
-import { Download, Search, ChevronRight, Hash, User, Clock, Tag, List, BarChart3, ArrowUpDown, FolderKanban, BookOpen, Activity } from "lucide-react";
+import { Download, Search, ChevronRight, ChevronLeft, User, Clock, Tag, List, BarChart3, ArrowUpDown, FolderKanban, BookOpen, Activity } from "lucide-react";
+import { toast } from "sonner";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { EventDictionary } from "./EventDictionary";
@@ -26,11 +27,73 @@ type EventRow = {
 type UniqueEvent = {
   name: string;
   count: number;
-  lastSeen: string;
-  uniqueUsers: number;
-  properties: Map<string, { values: Set<string>; type: string; count: number }>;
-  sampleEvents: EventRow[];
+  last_seen: string;
+  unique_users: number;
 };
+
+type PropertySchema = {
+  key: string;
+  type: string;
+  occurrence_count: number;
+  sample_values: string[];
+};
+
+const PAGE_SIZE = 50;
+const INSTANCE_PAGE_SIZE = 50;
+
+function PropertySchemaView({ schema, loading }: { schema: PropertySchema[]; loading: boolean }) {
+  if (loading) return <p className="text-sm text-muted-foreground py-4">Loading property schema...</p>;
+
+  const userProps = schema.filter((p) => !p.key.startsWith("$"));
+  const systemProps = schema.filter((p) => p.key.startsWith("$"));
+
+  const renderSchemaGroup = (items: PropertySchema[], label: string) => {
+    if (items.length === 0) return null;
+    return (
+      <div className="space-y-1">
+        <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider py-2">{label}</p>
+        <div className="space-y-0.5">
+          {items.map((prop) => (
+            <div key={prop.key} className="flex items-start gap-3 py-2 px-2 rounded-md hover:bg-muted/50">
+              <span className="text-xs font-mono text-muted-foreground shrink-0 min-w-[140px] truncate" title={prop.key}>
+                {prop.key.replace(/^\$/, "")}
+              </span>
+              <div className="flex-1 min-w-0 space-y-1">
+                <div className="flex items-center gap-2">
+                  <Badge variant="outline" className="text-[10px] h-4 px-1.5 font-mono">{prop.type}</Badge>
+                  <span className="text-[10px] text-muted-foreground">
+                    {prop.occurrence_count} events
+                  </span>
+                </div>
+                {prop.sample_values.length > 0 && (
+                  <div className="flex flex-wrap gap-1">
+                    {prop.sample_values.slice(0, 3).map((v, i) => (
+                      <span key={i} className="text-[11px] bg-muted px-1.5 py-0.5 rounded text-muted-foreground truncate max-w-[150px]">
+                        {v}
+                      </span>
+                    ))}
+                    {prop.sample_values.length > 3 && (
+                      <span className="text-[10px] text-muted-foreground">+{prop.sample_values.length - 3} more</span>
+                    )}
+                  </div>
+                )}
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+    );
+  };
+
+  return (
+    <div className="space-y-3">
+      {renderSchemaGroup(userProps, "Custom Properties")}
+      {userProps.length > 0 && systemProps.length > 0 && <Separator />}
+      {renderSchemaGroup(systemProps, "System Properties")}
+      {schema.length === 0 && <p className="text-sm text-muted-foreground italic py-4">No properties recorded</p>}
+    </div>
+  );
+}
 
 function PropertyValue({ value }: { value: any }) {
   if (value === null || value === undefined) return <span className="text-muted-foreground italic">null</span>;
@@ -46,72 +109,25 @@ function PropertyValue({ value }: { value: any }) {
   return <span>{String(value)}</span>;
 }
 
-function EventSchemaView({ uniqueEvent }: { uniqueEvent: UniqueEvent }) {
-  const propEntries = Array.from(uniqueEvent.properties.entries())
-    .filter(([key]) => !key.startsWith("$set"))
-    .sort((a, b) => b[1].count - a[1].count);
-
-  const userProps = propEntries.filter(([k]) => !k.startsWith("$"));
-  const systemProps = propEntries.filter(([k]) => k.startsWith("$"));
-
-  const renderSchemaGroup = (items: [string, { values: Set<string>; type: string; count: number }][], label: string) => {
-    if (items.length === 0) return null;
-    return (
-      <div className="space-y-1">
-        <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider py-2">{label}</p>
-        <div className="space-y-0.5">
-          {items.map(([key, info]) => {
-            const sampleValues = Array.from(info.values).slice(0, 3);
-            return (
-              <div key={key} className="flex items-start gap-3 py-2 px-2 rounded-md hover:bg-muted/50">
-                <span className="text-xs font-mono text-muted-foreground shrink-0 min-w-[140px] truncate" title={key}>
-                  {key.replace(/^\$/, "")}
-                </span>
-                <div className="flex-1 min-w-0 space-y-1">
-                  <div className="flex items-center gap-2">
-                    <Badge variant="outline" className="text-[10px] h-4 px-1.5 font-mono">{info.type}</Badge>
-                    <span className="text-[10px] text-muted-foreground">
-                      {info.count}/{uniqueEvent.count} events
-                    </span>
-                  </div>
-                  {sampleValues.length > 0 && (
-                    <div className="flex flex-wrap gap-1">
-                      {sampleValues.map((v, i) => (
-                        <span key={i} className="text-[11px] bg-muted px-1.5 py-0.5 rounded text-muted-foreground truncate max-w-[150px]">
-                          {v}
-                        </span>
-                      ))}
-                      {info.values.size > 3 && (
-                        <span className="text-[10px] text-muted-foreground">+{info.values.size - 3} more</span>
-                      )}
-                    </div>
-                  )}
-                </div>
-              </div>
-            );
-          })}
-        </div>
-      </div>
-    );
-  };
-
-  return (
-    <div className="space-y-3">
-      {renderSchemaGroup(userProps, "Custom Properties")}
-      {userProps.length > 0 && systemProps.length > 0 && <Separator />}
-      {renderSchemaGroup(systemProps, "System Properties")}
-      {propEntries.length === 0 && <p className="text-sm text-muted-foreground italic py-4">No properties recorded</p>}
-    </div>
-  );
-}
-
 export function EventsExplorer() {
   const [search, setSearch] = useState("");
-  const [selectedEvent, setSelectedEvent] = useState<UniqueEvent | null>(null);
+  const [debouncedSearch, setDebouncedSearch] = useState("");
+  const [selectedEventName, setSelectedEventName] = useState<string | null>(null);
   const [selectedInstance, setSelectedInstance] = useState<EventRow | null>(null);
   const [sortBy, setSortBy] = useState<"count" | "name" | "lastSeen">("count");
   const [view, setView] = useState<"schema" | "instances">("schema");
   const [selectedProjectId, setSelectedProjectId] = useState<string>("all");
+  const [page, setPage] = useState(0);
+  const [instancePage, setInstancePage] = useState(0);
+
+  // Debounce search
+  const handleSearchChange = useCallback((value: string) => {
+    setSearch(value);
+    setPage(0);
+    // Simple debounce
+    const timer = setTimeout(() => setDebouncedSearch(value), 300);
+    return () => clearTimeout(timer);
+  }, []);
 
   const { data: projects } = useQuery({
     queryKey: ["projects"],
@@ -126,88 +142,100 @@ export function EventsExplorer() {
     ? (projects?.map((p) => p.id) ?? [])
     : [selectedProjectId];
 
-  const { data: events } = useQuery({
-    queryKey: ["events-explorer", projectIds],
+  // Server-side: get unique events with stats (paginated)
+  const { data: uniqueEvents } = useQuery({
+    queryKey: ["events-explorer", projectIds, debouncedSearch, sortBy, page],
     enabled: projectIds.length > 0,
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from("events")
-        .select("*")
-        .in("project_id", projectIds)
-        .order("timestamp", { ascending: false })
-        .limit(1000);
+      const { data, error } = await supabase.rpc("get_unique_events", {
+        p_project_ids: projectIds,
+        p_search: debouncedSearch || null,
+        p_sort_by: sortBy,
+        p_limit: PAGE_SIZE,
+        p_offset: page * PAGE_SIZE,
+      });
       if (error) throw error;
-      return data as EventRow[];
+      return (data as UniqueEvent[]) ?? [];
     },
   });
 
-  const uniqueEvents = useMemo(() => {
-    if (!events) return [];
-    const map = new Map<string, UniqueEvent>();
+  // Server-side: get total count for pagination
+  const { data: totalCount } = useQuery({
+    queryKey: ["events-explorer-count", projectIds, debouncedSearch],
+    enabled: projectIds.length > 0,
+    queryFn: async () => {
+      const { data, error } = await supabase.rpc("get_unique_events_count", {
+        p_project_ids: projectIds,
+        p_search: debouncedSearch || null,
+      });
+      if (error) throw error;
+      return (data as number) ?? 0;
+    },
+  });
 
-    for (const ev of events) {
-      let entry = map.get(ev.event_name);
-      if (!entry) {
-        entry = {
-          name: ev.event_name,
-          count: 0,
-          lastSeen: ev.timestamp,
-          uniqueUsers: 0,
-          properties: new Map(),
-          sampleEvents: [],
-        };
-        map.set(ev.event_name, entry);
-      }
-      entry.count++;
-      if (new Date(ev.timestamp) > new Date(entry.lastSeen)) entry.lastSeen = ev.timestamp;
-      if (entry.sampleEvents.length < 20) entry.sampleEvents.push(ev);
+  // Get total event count across all unique events
+  const totalEvents = uniqueEvents?.reduce((sum, e) => sum + e.count, 0) ?? 0;
+  const totalPages = Math.ceil((totalCount ?? 0) / PAGE_SIZE);
 
-      // Collect property schema
-      if (ev.properties && typeof ev.properties === "object") {
-        for (const [key, val] of Object.entries(ev.properties)) {
-          let prop = entry.properties.get(key);
-          if (!prop) {
-            prop = { values: new Set(), type: typeof val, count: 0 };
-            entry.properties.set(key, prop);
-          }
-          prop.count++;
-          if (val !== null && val !== undefined && prop.values.size < 20) {
-            prop.values.add(String(val).slice(0, 80));
-          }
-        }
-      }
+  // Server-side: property schema for selected event
+  const { data: propertySchema, isLoading: schemaLoading } = useQuery({
+    queryKey: ["event-schema", projectIds, selectedEventName],
+    enabled: !!selectedEventName && projectIds.length > 0,
+    queryFn: async () => {
+      const { data, error } = await supabase.rpc("get_event_property_schema", {
+        p_project_ids: projectIds,
+        p_event_name: selectedEventName!,
+      });
+      if (error) throw error;
+      return (data as PropertySchema[]) ?? [];
+    },
+  });
+
+  // Server-side: paginated event instances for selected event
+  const { data: eventInstances } = useQuery({
+    queryKey: ["event-instances", projectIds, selectedEventName, instancePage],
+    enabled: !!selectedEventName && projectIds.length > 0,
+    queryFn: async () => {
+      const { data, error } = await supabase.rpc("get_event_instances", {
+        p_project_ids: projectIds,
+        p_event_name: selectedEventName!,
+        p_limit: INSTANCE_PAGE_SIZE,
+        p_offset: instancePage * INSTANCE_PAGE_SIZE,
+      });
+      if (error) throw error;
+      return (data as EventRow[]) ?? [];
+    },
+  });
+
+  // Get the selected event's stats from the list
+  const selectedEventStats = uniqueEvents?.find((e) => e.name === selectedEventName);
+
+  const exportCSV = async () => {
+    // Export all events for this project using paginated fetches
+    toast("Exporting events...");
+    let allRows: any[] = [];
+    let offset = 0;
+    const exportLimit = 5000;
+
+    while (offset < exportLimit) {
+      const { data, error } = await supabase
+        .from("events")
+        .select("event_name, user_identifier, page_url, timestamp, properties")
+        .in("project_id", projectIds)
+        .order("timestamp", { ascending: false })
+        .range(offset, offset + 999);
+
+      if (error || !data || data.length === 0) break;
+      allRows = allRows.concat(data);
+      if (data.length < 1000) break;
+      offset += 1000;
     }
 
-    // Calculate unique users
-    for (const entry of map.values()) {
-      const users = new Set(entry.sampleEvents.map((e) => e.user_identifier).filter(Boolean));
-      entry.uniqueUsers = users.size;
-    }
+    if (allRows.length === 0) return;
 
-    return Array.from(map.values());
-  }, [events]);
-
-  const filtered = useMemo(() => {
-    let result = uniqueEvents;
-    if (search) {
-      const s = search.toLowerCase();
-      result = result.filter((e) => e.name.toLowerCase().includes(s));
-    }
-    result.sort((a, b) => {
-      if (sortBy === "count") return b.count - a.count;
-      if (sortBy === "name") return a.name.localeCompare(b.name);
-      return new Date(b.lastSeen).getTime() - new Date(a.lastSeen).getTime();
-    });
-    return result;
-  }, [uniqueEvents, search, sortBy]);
-
-  const totalEvents = events?.length ?? 0;
-
-  const exportCSV = () => {
-    if (!events?.length) return;
     const headers = ["event_name", "user_identifier", "page_url", "timestamp", "properties"];
-    const rows = events.map((e) => [e.event_name, e.user_identifier ?? "", e.page_url ?? "", e.timestamp, JSON.stringify(e.properties)]);
-    const csv = [headers.join(","), ...rows.map((r) => r.map((v) => `"${v}"`).join(","))].join("\n");
+    const rows = allRows.map((e) => [e.event_name, e.user_identifier ?? "", e.page_url ?? "", e.timestamp, JSON.stringify(e.properties)]);
+    const csv = [headers.join(","), ...rows.map((r) => r.map((v) => `"${String(v).replace(/"/g, '""')}"`).join(","))].join("\n");
     const blob = new Blob([csv], { type: "text/csv" });
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
@@ -235,11 +263,11 @@ export function EventsExplorer() {
             Manage your event dictionary and explore live data.
           </p>
         </div>
-        
-        {/* Project selector - Global for both tabs */}
+
+        {/* Project selector */}
         <div className="flex items-center gap-2">
           <FolderKanban className="h-4 w-4 text-muted-foreground" />
-          <Select value={selectedProjectId} onValueChange={setSelectedProjectId}>
+          <Select value={selectedProjectId} onValueChange={(v) => { setSelectedProjectId(v); setPage(0); }}>
             <SelectTrigger className="w-48 h-9 text-xs">
               <SelectValue placeholder="Select project" />
             </SelectTrigger>
@@ -268,7 +296,7 @@ export function EventsExplorer() {
         <TabsContent value="live" className="space-y-6 mt-6">
           <div className="flex items-center justify-between">
             <div className="text-sm text-muted-foreground">
-              {filtered.length} unique events · {totalEvents.toLocaleString()} total occurrences
+              {totalCount ?? 0} unique events · {totalEvents.toLocaleString()} total occurrences
             </div>
             <Button variant="outline" size="sm" onClick={exportCSV} disabled={totalEvents === 0}>
               <Download className="h-4 w-4 mr-2" />
@@ -279,13 +307,13 @@ export function EventsExplorer() {
           <div className="flex items-center gap-3">
             <div className="relative flex-1 max-w-md">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-              <Input placeholder="Search events..." value={search} onChange={(e) => setSearch(e.target.value)} className="pl-10" />
+              <Input placeholder="Search events..." value={search} onChange={(e) => handleSearchChange(e.target.value)} className="pl-10" />
             </div>
             <Button
               variant="ghost"
               size="sm"
               className="text-xs gap-1"
-              onClick={() => setSortBy(sortBy === "count" ? "name" : sortBy === "name" ? "lastSeen" : "count")}
+              onClick={() => { setSortBy(sortBy === "count" ? "name" : sortBy === "name" ? "lastSeen" : "count"); setPage(0); }}
             >
               <ArrowUpDown className="h-3 w-3" />
               {sortBy === "count" ? "By Volume" : sortBy === "name" ? "A-Z" : "Recent"}
@@ -293,20 +321,17 @@ export function EventsExplorer() {
           </div>
 
           <div className="grid gap-2">
-            {filtered.map((ev) => (
+            {(uniqueEvents ?? []).map((ev) => (
               <Card
                 key={ev.name}
                 className="cursor-pointer transition-all hover:border-primary/30"
-                onClick={() => { setSelectedEvent(ev); setView("schema"); }}
+                onClick={() => { setSelectedEventName(ev.name); setView("schema"); setInstancePage(0); }}
               >
                 <CardContent className="p-4">
                   <div className="flex items-center gap-4">
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2">
                         <span className="font-mono font-medium text-sm truncate">{ev.name}</span>
-                        <Badge variant="secondary" className="text-[10px] h-5 px-1.5 shrink-0">
-                          {ev.properties.size} props
-                        </Badge>
                       </div>
                       <div className="flex items-center gap-4 mt-1.5 text-xs text-muted-foreground">
                         <span className="flex items-center gap-1">
@@ -315,11 +340,11 @@ export function EventsExplorer() {
                         </span>
                         <span className="flex items-center gap-1">
                           <User className="h-3 w-3" />
-                          {ev.uniqueUsers} users
+                          {ev.unique_users} users
                         </span>
                         <span className="flex items-center gap-1">
                           <Clock className="h-3 w-3" />
-                          {timeAgo(ev.lastSeen)}
+                          {timeAgo(ev.last_seen)}
                         </span>
                       </div>
                     </div>
@@ -328,7 +353,7 @@ export function EventsExplorer() {
                 </CardContent>
               </Card>
             ))}
-            {filtered.length === 0 && (
+            {(!uniqueEvents || uniqueEvents.length === 0) && (
               <Card>
                 <CardContent className="py-12 text-center text-muted-foreground">
                   {totalEvents === 0 ? "No events yet. Sync from PostHog/Mixpanel or send events via the API." : "No matching events found."}
@@ -336,6 +361,31 @@ export function EventsExplorer() {
               </Card>
             )}
           </div>
+
+          {/* Pagination controls */}
+          {totalPages > 1 && (
+            <div className="flex items-center justify-between pt-2">
+              <Button
+                variant="outline"
+                size="sm"
+                disabled={page === 0}
+                onClick={() => setPage((p) => Math.max(0, p - 1))}
+              >
+                <ChevronLeft className="h-4 w-4 mr-1" /> Previous
+              </Button>
+              <span className="text-sm text-muted-foreground">
+                Page {page + 1} of {totalPages}
+              </span>
+              <Button
+                variant="outline"
+                size="sm"
+                disabled={page >= totalPages - 1}
+                onClick={() => setPage((p) => p + 1)}
+              >
+                Next <ChevronRight className="h-4 w-4 ml-1" />
+              </Button>
+            </div>
+          )}
         </TabsContent>
 
         <TabsContent value="dictionary" className="mt-6">
@@ -344,23 +394,25 @@ export function EventsExplorer() {
       </Tabs>
 
       {/* Event Detail Sheet */}
-      <Sheet open={!!selectedEvent && !selectedInstance} onOpenChange={() => setSelectedEvent(null)}>
+      <Sheet open={!!selectedEventName && !selectedInstance} onOpenChange={() => setSelectedEventName(null)}>
         <SheetContent className="sm:max-w-lg w-full p-0">
           <div className="p-6 pb-0">
             <SheetHeader>
-              <SheetTitle className="font-mono text-lg">{selectedEvent?.name}</SheetTitle>
+              <SheetTitle className="font-mono text-lg">{selectedEventName}</SheetTitle>
             </SheetHeader>
-            <div className="flex items-center gap-4 mt-3 text-sm text-muted-foreground">
-              <span className="flex items-center gap-1"><BarChart3 className="h-3.5 w-3.5" />{selectedEvent?.count.toLocaleString()} total</span>
-              <span className="flex items-center gap-1"><User className="h-3.5 w-3.5" />{selectedEvent?.uniqueUsers} users</span>
-              <span className="flex items-center gap-1"><Clock className="h-3.5 w-3.5" />{selectedEvent && timeAgo(selectedEvent.lastSeen)}</span>
-            </div>
+            {selectedEventStats && (
+              <div className="flex items-center gap-4 mt-3 text-sm text-muted-foreground">
+                <span className="flex items-center gap-1"><BarChart3 className="h-3.5 w-3.5" />{selectedEventStats.count.toLocaleString()} total</span>
+                <span className="flex items-center gap-1"><User className="h-3.5 w-3.5" />{selectedEventStats.unique_users} users</span>
+                <span className="flex items-center gap-1"><Clock className="h-3.5 w-3.5" />{timeAgo(selectedEventStats.last_seen)}</span>
+              </div>
+            )}
 
             <div className="flex gap-1 mt-4">
               <Button variant={view === "schema" ? "default" : "ghost"} size="sm" className="text-xs h-8" onClick={() => setView("schema")}>
                 <Tag className="h-3 w-3 mr-1" /> Property Schema
               </Button>
-              <Button variant={view === "instances" ? "default" : "ghost"} size="sm" className="text-xs h-8" onClick={() => setView("instances")}>
+              <Button variant={view === "instances" ? "default" : "ghost"} size="sm" className="text-xs h-8" onClick={() => { setView("instances"); setInstancePage(0); }}>
                 <List className="h-3 w-3 mr-1" /> Recent Events
               </Button>
             </div>
@@ -369,10 +421,12 @@ export function EventsExplorer() {
           <Separator className="mt-4" />
 
           <ScrollArea className="h-[calc(100vh-220px)] px-6 py-4">
-            {view === "schema" && selectedEvent && <EventSchemaView uniqueEvent={selectedEvent} />}
-            {view === "instances" && selectedEvent && (
+            {view === "schema" && selectedEventName && (
+              <PropertySchemaView schema={propertySchema ?? []} loading={schemaLoading} />
+            )}
+            {view === "instances" && selectedEventName && (
               <div className="space-y-2">
-                {selectedEvent.sampleEvents.map((ev) => (
+                {(eventInstances ?? []).map((ev) => (
                   <Card
                     key={ev.id}
                     className="cursor-pointer hover:border-primary/30 transition-all"
@@ -395,6 +449,26 @@ export function EventsExplorer() {
                     </CardContent>
                   </Card>
                 ))}
+                {/* Instance pagination */}
+                <div className="flex items-center justify-between pt-2">
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    disabled={instancePage === 0}
+                    onClick={() => setInstancePage((p) => Math.max(0, p - 1))}
+                  >
+                    <ChevronLeft className="h-4 w-4 mr-1" /> Previous
+                  </Button>
+                  <span className="text-xs text-muted-foreground">Page {instancePage + 1}</span>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    disabled={(eventInstances ?? []).length < INSTANCE_PAGE_SIZE}
+                    onClick={() => setInstancePage((p) => p + 1)}
+                  >
+                    Next <ChevronRight className="h-4 w-4 ml-1" />
+                  </Button>
+                </div>
               </div>
             )}
           </ScrollArea>
@@ -425,14 +499,14 @@ export function EventsExplorer() {
                 {selectedInstance?.properties && Object.entries(selectedInstance.properties).map(([key, value]) => (
                   <div key={key} className="flex gap-2">
                     <span className="text-blue-500">{key}:</span>
-                    <span className="text-foreground break-all">{JSON.stringify(value)}</span>
+                    <span className="text-foreground break-all"><PropertyValue value={value} /></span>
                   </div>
                 ))}
               </div>
             </div>
-            
+
             {selectedInstance?.page_url && (
-               <div>
+              <div>
                 <label className="text-xs font-medium text-muted-foreground uppercase mb-2 block">Page URL</label>
                 <a href={selectedInstance.page_url} target="_blank" rel="noopener noreferrer" className="text-sm text-primary hover:underline break-all">
                   {selectedInstance.page_url}
