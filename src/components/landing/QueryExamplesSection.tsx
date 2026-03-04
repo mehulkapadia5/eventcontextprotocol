@@ -11,18 +11,8 @@ const queries = [
 
 export function QueryExamplesSection() {
   return (
-    <section id="examples" className="px-6 md:px-12 py-24 max-w-[1200px] mx-auto">
-      <h2
-        className="text-center"
-        style={{
-          fontFamily: "'Syne', sans-serif",
-          fontSize: "clamp(32px, 4vw, 48px)",
-          fontWeight: 800,
-          letterSpacing: "-2px",
-          marginBottom: 12,
-          color: "#0a0a0f",
-        }}
-      >
+    <section id="examples" className="px-6 md:px-12 py-24 max-w-[1200px] mx-auto" style={{ fontFamily: "'Mona Sans', sans-serif" }}>
+      <h2 className="text-center font-bold mb-3" style={{ fontSize: "clamp(32px, 4vw, 48px)", letterSpacing: "-1.5px", color: "#0a0a0f" }}>
         What can you ask?
       </h2>
       <p className="text-center mb-16" style={{ color: "#7c7c8a", fontSize: 17 }}>
@@ -34,19 +24,9 @@ export function QueryExamplesSection() {
           <div
             key={q}
             className="flex items-center gap-3 rounded-[10px] px-5 py-4 text-[15px] cursor-default transition-all"
-            style={{
-              background: "#ffffff",
-              border: "1px solid rgba(10,10,15,0.10)",
-              color: "#0a0a0f",
-            }}
-            onMouseEnter={(e) => {
-              e.currentTarget.style.borderColor = "#4f3bf5";
-              e.currentTarget.style.boxShadow = "0 0 0 3px rgba(79,59,245,0.08)";
-            }}
-            onMouseLeave={(e) => {
-              e.currentTarget.style.borderColor = "rgba(10,10,15,0.10)";
-              e.currentTarget.style.boxShadow = "none";
-            }}
+            style={{ background: "#ffffff", border: "1px solid rgba(10,10,15,0.10)", color: "#0a0a0f" }}
+            onMouseEnter={(e) => { e.currentTarget.style.borderColor = "#4f3bf5"; e.currentTarget.style.boxShadow = "0 0 0 3px rgba(79,59,245,0.08)"; }}
+            onMouseLeave={(e) => { e.currentTarget.style.borderColor = "rgba(10,10,15,0.10)"; e.currentTarget.style.boxShadow = "none"; }}
           >
             <span style={{ color: "#4f3bf5", fontSize: 18 }}>→</span>
             {q}
