@@ -1,27 +1,24 @@
 import { Card, CardContent } from "@/components/ui/card";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import marishImg from "@/assets/testimonial-marish.png";
+import richardImg from "@/assets/testimonial-richard.png";
 
 const testimonials = [
   {
-    quote: "Magnitude replaced three tools for us. We finally understand what our users actually do — without writing a single query.",
-    name: "Sarah Chen",
-    role: "Head of Product",
-    company: "Flowstack",
-    initials: "SC",
-  },
-  {
-    quote: "I used to wait days for our data team to pull reports. Now I just ask Magnitude in plain English and get answers instantly.",
-    name: "James Okafor",
-    role: "Product Manager",
-    company: "Nuvio",
-    initials: "JO",
-  },
-  {
-    quote: "Setting up took five minutes. The AI insights surfaced a churn pattern we'd missed for months. Absolute game-changer.",
-    name: "Maria Lindström",
+    quote: "This is crazy man, I was analysing my funnel and realised I had mistakenly unlocked a paid feature for free users accidentally. Loved it!",
+    name: "Marish Asudani",
     role: "Co-Founder",
-    company: "Peakly",
-    initials: "ML",
+    company: "USMLEVault",
+    image: marishImg,
+    initials: "MA",
+  },
+  {
+    quote: "This makes my life so much simpler. Back in the day we had to hire a huge data analytics team, instrument products and have analyst team take weeks to get data — I'm doing it in seconds using simple prompts. This saves us thousands of dollars and countless man hours. Can't go back to older tools.",
+    name: "Richard Davidson",
+    role: "Ex-Director, Business Development",
+    company: "GetInsured",
+    image: richardImg,
+    initials: "RD",
   },
 ];
 
@@ -37,7 +34,7 @@ export function TestimonialsSection() {
             See why teams are switching to Magnitude for their product analytics.
           </p>
         </div>
-        <div className="grid gap-6 md:grid-cols-3">
+        <div className="grid gap-6 md:grid-cols-2 max-w-4xl mx-auto">
           {testimonials.map((t) => (
             <Card key={t.name} className="bg-card border-border">
               <CardContent className="pt-6">
@@ -45,7 +42,8 @@ export function TestimonialsSection() {
                   "{t.quote}"
                 </p>
                 <div className="flex items-center gap-3">
-                  <Avatar className="h-9 w-9">
+                  <Avatar className="h-10 w-10">
+                    <AvatarImage src={t.image} alt={t.name} />
                     <AvatarFallback className="text-xs">{t.initials}</AvatarFallback>
                   </Avatar>
                   <div>
