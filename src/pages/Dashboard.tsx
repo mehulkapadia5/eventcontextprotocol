@@ -44,7 +44,7 @@ export default function Dashboard() {
           {sidebarOpen && (
             <div className="flex items-center gap-2">
               <Activity className="h-5 w-5 text-primary shrink-0" />
-              <span className="font-mono font-bold text-lg">ECP</span>
+              <span className="font-semibold tracking-tight text-lg">Magnitude</span>
             </div>
           )}
 

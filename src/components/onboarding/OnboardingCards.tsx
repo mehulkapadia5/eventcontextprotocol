@@ -589,7 +589,7 @@ export function OnboardingCards() {
                 <div className="space-y-2">
                   <Label className="flex items-center justify-between">
                     Personal Access Token
-                    <a href="https://github.com/settings/tokens/new?scopes=repo&description=ECP+Access" target="_blank" rel="noopener noreferrer" className="text-xs text-primary hover:underline font-normal">Create token →</a>
+                    <a href="https://github.com/settings/tokens/new?scopes=repo&description=Magnitude+Access" target="_blank" rel="noopener noreferrer" className="text-xs text-primary hover:underline font-normal">Create token →</a>
                   </Label>
                   <Input type="password" placeholder="ghp_..." value={githubPat} onChange={(e) => setGithubPat(e.target.value)} />
                   <p className="text-xs text-muted-foreground">Optional for public repos, required for private repos. Enables code-aware AI insights.</p>

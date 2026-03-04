@@ -24,7 +24,7 @@ export function HowItWorksSection() {
             Set up in under 5 minutes
           </h2>
           <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
-            Connect your tools and let ECP do the rest.
+            Connect your tools and let Magnitude do the rest.
           </p>
         </div>
 
@@ -157,7 +157,7 @@ export function HowItWorksSection() {
                     </div>
                     <div>
                       <CardTitle className="text-base">Get AI-Powered Insights</CardTitle>
-                      <CardDescription className="text-xs">ECP analyzes your data and codebase together</CardDescription>
+                      <CardDescription className="text-xs">Magnitude analyzes your data and codebase together</CardDescription>
                     </div>
                   </div>
                   <Badge className="text-xs">Final Step</Badge>
