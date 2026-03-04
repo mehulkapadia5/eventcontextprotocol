@@ -24,6 +24,8 @@ export function HeroSection() {
 
         <p className="max-w-2xl text-lg text-muted-foreground md:text-xl">
           Connect your analytics, get actionable insights in minutes — no SQL required.
+          <br />
+          Ask questions about your data to Magnitude in plain English.
         </p>
 
         <Button size="lg" asChild>
