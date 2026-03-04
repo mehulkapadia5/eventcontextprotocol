@@ -2,6 +2,7 @@ import { useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { HeroSection } from "@/components/landing/HeroSection";
+import { TestimonialsSection } from "@/components/landing/TestimonialsSection";
 import { IntegrationsSection } from "@/components/landing/IntegrationsSection";
 import { HowItWorksSection } from "@/components/landing/HowItWorksSection";
 import { FeaturesSection } from "@/components/landing/FeaturesSection";
@@ -31,6 +32,7 @@ const Index = () => {
       <main>
         <HeroSection />
         <IntegrationsSection />
+        <TestimonialsSection />
         <HowItWorksSection />
         <FeaturesSection />
         <QueryExamplesSection />
