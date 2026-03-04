@@ -14,14 +14,9 @@ export function Navbar() {
           <a href="#features" className="hover:text-foreground transition-colors">Features</a>
           <a href="#how-it-works" className="hover:text-foreground transition-colors">How It Works</a>
         </nav>
-        <div className="flex items-center gap-3">
-          <Button variant="ghost" size="sm" asChild>
-            <Link to="/auth">Log In</Link>
-          </Button>
-          <Button size="sm" asChild>
-            <Link to="/auth?tab=signup">Get Started</Link>
-          </Button>
-        </div>
+        <Button variant="ghost" size="sm" asChild>
+          <Link to="/auth">Log In</Link>
+        </Button>
       </div>
     </header>
   );
