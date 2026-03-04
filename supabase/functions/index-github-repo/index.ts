@@ -79,8 +79,9 @@ serve(async (req) => {
       .single();
 
     const onboardingData = profile?.onboarding_data as any;
-    const github_url = onboardingData?.github_url;
-    const github_pat = onboardingData?.github_pat;
+    const codebase = onboardingData?.codebase || {};
+    const github_url = codebase?.github_url || onboardingData?.github_url;
+    const github_pat = codebase?.github_pat || onboardingData?.github_pat;
     if (!github_url) throw new Error("No GitHub URL configured. Please connect your repository first.");
 
     const parsed = parseRepoUrl(github_url);
