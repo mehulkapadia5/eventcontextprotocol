@@ -26,7 +26,7 @@ const Index = () => {
   }, [navigate]);
 
   return (
-    <div style={{ background: "#f5f3ee", color: "#0a0a0f", fontFamily: "'DM Sans', sans-serif", fontWeight: 300 }}>
+    <div style={{ background: "#f5f3ee", color: "#0a0a0f", fontFamily: "'Mona Sans', sans-serif", fontWeight: 400 }}>
       <Navbar />
       <main>
         <HeroSection />

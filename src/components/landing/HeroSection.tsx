@@ -4,7 +4,7 @@ export function HeroSection() {
   return (
     <section
       className="relative overflow-hidden flex flex-col justify-center min-h-screen px-6 md:px-12"
-      style={{ paddingTop: 140, paddingBottom: 80 }}
+      style={{ paddingTop: 140, paddingBottom: 80, fontFamily: "'Mona Sans', sans-serif" }}
     >
       {/* Grid background */}
       <div
@@ -29,13 +29,11 @@ export function HeroSection() {
 
       {/* Heading */}
       <h1
-        className="relative z-10"
+        className="relative z-10 font-bold"
         style={{
-          fontFamily: "'Syne', sans-serif",
-          fontSize: "clamp(52px, 7vw, 96px)",
-          fontWeight: 800,
-          lineHeight: 1.0,
-          letterSpacing: "-3px",
+          fontSize: "clamp(48px, 7vw, 88px)",
+          lineHeight: 1.05,
+          letterSpacing: "-2px",
           maxWidth: 900,
           animation: "fadeUp 0.7s 0.1s ease both",
           color: "#0a0a0f",
@@ -50,12 +48,11 @@ export function HeroSection() {
       <p
         className="relative z-10 mt-7"
         style={{
-          fontSize: 19,
+          fontSize: 18,
           color: "#7c7c8a",
           maxWidth: 520,
           lineHeight: 1.65,
-          fontFamily: "'DM Sans', sans-serif",
-          fontWeight: 300,
+          fontWeight: 400,
           animation: "fadeUp 0.7s 0.2s ease both",
         }}
       >
@@ -91,10 +88,7 @@ export function HeroSection() {
       </div>
 
       {/* Chat Preview */}
-      <div
-        className="relative z-10 mt-20"
-        style={{ animation: "fadeUp 0.9s 0.4s ease both" }}
-      >
+      <div className="relative z-10 mt-20" style={{ animation: "fadeUp 0.9s 0.4s ease both" }}>
         <div
           className="overflow-hidden"
           style={{
@@ -105,31 +99,28 @@ export function HeroSection() {
             maxWidth: 820,
           }}
         >
-          {/* Top bar */}
           <div className="flex items-center gap-3 px-5 py-3.5" style={{ background: "#0a0a0f" }}>
             <div className="flex gap-1.5">
-              <span className="w-3 h-3 rounded-full" style={{ background: "rgba(255,255,255,0.2)" }} />
-              <span className="w-3 h-3 rounded-full" style={{ background: "rgba(255,255,255,0.2)" }} />
-              <span className="w-3 h-3 rounded-full" style={{ background: "rgba(255,255,255,0.2)" }} />
+              {[0, 1, 2].map((i) => (
+                <span key={i} className="w-3 h-3 rounded-full" style={{ background: "rgba(255,255,255,0.2)" }} />
+              ))}
             </div>
-            <span style={{ color: "rgba(255,255,255,0.5)", fontFamily: "'DM Mono', monospace", fontSize: 12, marginLeft: 8 }}>
+            <span className="font-mono text-xs ml-2" style={{ color: "rgba(255,255,255,0.5)" }}>
               magnitude / analytics assistant
             </span>
           </div>
-
-          {/* Chat body */}
-          <div className="flex flex-col gap-4 p-7">
-            <div className="self-end rounded-xl px-4 py-3.5 text-sm text-white max-w-[85%]" style={{ background: "#4f3bf5", borderBottomRightRadius: 3 }}>
+          <div className="flex flex-col gap-4 p-7 text-sm">
+            <div className="self-end rounded-xl px-4 py-3.5 text-white max-w-[85%]" style={{ background: "#4f3bf5", borderBottomRightRadius: 3 }}>
               What caused the drop in signups last week?
             </div>
-            <div className="self-start rounded-xl px-4 py-3.5 text-sm max-w-[85%]" style={{ background: "#f4f4f8", color: "#0a0a0f", borderBottomLeftRadius: 3 }}>
-              Found it. There was a <code style={{ fontFamily: "'DM Mono', monospace", fontSize: 12, background: "rgba(79,59,245,0.08)", color: "#4f3bf5", padding: "2px 6px", borderRadius: 4 }}>deployment_change</code> on Feb 27 that removed the tracking code — so <code style={{ fontFamily: "'DM Mono', monospace", fontSize: 12, background: "rgba(79,59,245,0.08)", color: "#4f3bf5", padding: "2px 6px", borderRadius: 4 }}>user_signed_in</code> events stopped firing. Your actual signups likely didn't drop; they just went untracked.
+            <div className="self-start rounded-xl px-4 py-3.5 max-w-[85%]" style={{ background: "#f4f4f8", color: "#0a0a0f", borderBottomLeftRadius: 3 }}>
+              Found it. There was a <code className="font-mono text-xs px-1.5 py-0.5 rounded" style={{ background: "rgba(79,59,245,0.08)", color: "#4f3bf5" }}>deployment_change</code> on Feb 27 that removed the tracking code — so <code className="font-mono text-xs px-1.5 py-0.5 rounded" style={{ background: "rgba(79,59,245,0.08)", color: "#4f3bf5" }}>user_signed_in</code> events stopped firing.
             </div>
-            <div className="self-end rounded-xl px-4 py-3.5 text-sm text-white max-w-[85%]" style={{ background: "#4f3bf5", borderBottomRightRadius: 3 }}>
-              Yes, and also show me my top traffic sources this month
+            <div className="self-end rounded-xl px-4 py-3.5 text-white max-w-[85%]" style={{ background: "#4f3bf5", borderBottomRightRadius: 3 }}>
+              Show me my top traffic sources this month
             </div>
-            <div className="self-start rounded-xl px-4 py-3.5 text-sm max-w-[85%]" style={{ background: "#f4f4f8", color: "#0a0a0f", borderBottomLeftRadius: 3 }}>
-              Top sources (March 1–5): <strong>Direct 38%</strong> · Organic Search 29% · Referral 18% · Social 15%. Direct traffic is unusually high — likely a Product Hunt spike on March 2nd.
+            <div className="self-start rounded-xl px-4 py-3.5 max-w-[85%]" style={{ background: "#f4f4f8", color: "#0a0a0f", borderBottomLeftRadius: 3 }}>
+              Top sources (March 1–5): <strong>Direct 38%</strong> · Organic Search 29% · Referral 18% · Social 15%.
             </div>
           </div>
         </div>
