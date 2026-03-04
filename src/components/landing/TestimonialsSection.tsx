@@ -36,12 +36,12 @@ export function TestimonialsSection() {
         </div>
         <div className="grid gap-6 md:grid-cols-2 max-w-4xl mx-auto">
           {testimonials.map((t) => (
-            <Card key={t.name} className="bg-card border-border">
-              <CardContent className="pt-6">
-                <p className="text-sm text-muted-foreground mb-6 italic">
+            <Card key={t.name} className="bg-card border-border flex flex-col">
+              <CardContent className="pt-6 flex flex-col flex-1">
+                <p className="text-sm text-muted-foreground mb-6 italic flex-1">
                   "{t.quote}"
                 </p>
-                <div className="flex items-center gap-3">
+                <div className="flex items-center gap-3 mt-auto">
                   <Avatar className="h-10 w-10">
                     <AvatarImage src={t.image} alt={t.name} />
                     <AvatarFallback className="text-xs">{t.initials}</AvatarFallback>
