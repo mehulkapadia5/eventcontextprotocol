@@ -309,7 +309,7 @@ export function EventDictionary({ projectId, githubUrl: initialGithubUrl, github
   const [scanGithubPat, setScanGithubPat] = useState(initialGithubPat || "");
 
   const queryClient = useQueryClient();
-  const indexer = useCodebaseIndexer(projectId);
+  const indexer = useCodebaseIndexer(projectId, scanGithubUrl || initialGithubUrl, scanGithubPat || initialGithubPat);
 
   // Fetch annotations
   const { data: annotations } = useQuery({

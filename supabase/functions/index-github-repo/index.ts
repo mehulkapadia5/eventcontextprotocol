@@ -57,7 +57,8 @@ serve(async (req) => {
   const serviceClient = createClient(supabaseUrl, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
 
   try {
-    const { project_id } = await req.json();
+    const body = await req.json();
+    const { project_id, github_url: bodyGithubUrl, github_pat: bodyGithubPat } = body;
     if (!project_id) throw new Error("project_id required");
 
     // Auth
@@ -71,18 +72,39 @@ serve(async (req) => {
     if (userErr || !user) throw new Error("Unauthorized");
     const userId = user.id;
 
-    // Get github_url and github_pat from profile
-    const { data: profile } = await serviceClient
-      .from("profiles")
-      .select("onboarding_data")
-      .eq("user_id", userId)
-      .single();
+    // Get github_url and github_pat from request body or profile
+    let github_url = bodyGithubUrl;
+    let github_pat = bodyGithubPat;
 
-    const onboardingData = profile?.onboarding_data as any;
-    const codebase = onboardingData?.codebase || {};
-    const github_url = codebase?.github_url || onboardingData?.github_url;
-    const github_pat = codebase?.github_pat || onboardingData?.github_pat;
+    if (!github_url) {
+      const { data: profile } = await serviceClient
+        .from("profiles")
+        .select("onboarding_data")
+        .eq("user_id", userId)
+        .single();
+
+      const onboardingData = profile?.onboarding_data as any;
+      const codebase = onboardingData?.codebase || {};
+      github_url = codebase?.github_url || onboardingData?.github_url;
+      github_pat = github_pat || codebase?.github_pat || onboardingData?.github_pat;
+    }
+
     if (!github_url) throw new Error("No GitHub URL configured. Please connect your repository first.");
+
+    // Save github_url to profile if it came from request body
+    if (bodyGithubUrl) {
+      const { data: profile } = await serviceClient
+        .from("profiles")
+        .select("onboarding_data")
+        .eq("user_id", userId)
+        .single();
+      const existingData = (profile?.onboarding_data as any) || {};
+      const updatedData = {
+        ...existingData,
+        codebase: { ...(existingData.codebase || {}), github_url: bodyGithubUrl, ...(bodyGithubPat ? { github_pat: bodyGithubPat } : {}) },
+      };
+      await serviceClient.from("profiles").update({ onboarding_data: updatedData }).eq("user_id", userId);
+    }
 
     const parsed = parseRepoUrl(github_url);
     if (!parsed) throw new Error("Invalid GitHub URL");
