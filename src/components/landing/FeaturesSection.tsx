@@ -1,62 +1,59 @@
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Clock, MessageSquareText, Plug, Brain, Shield, Sparkles } from "lucide-react";
-
 const features = [
-  {
-    icon: Clock,
-    title: "Setup in 5 Minutes",
-    description: "Connect your analytics tools and codebase — no engineering work required to get started.",
-  },
-  {
-    icon: MessageSquareText,
-    title: "Ask in Plain English",
-    description: "Ask product questions naturally and get AI-powered answers backed by your real data.",
-  },
-  {
-    icon: Plug,
-    title: "Works With Your Tools",
-    description: "Integrates with Mixpanel, PostHog, Google Analytics, and more. No migration needed.",
-  },
-  {
-    icon: Brain,
-    title: "Context-Aware Analysis",
-    description: "Connects code changes to metric shifts so you understand the why behind every number.",
-  },
-  {
-    icon: Shield,
-    title: "Enterprise Security",
-    description: "Per-project data isolation, enterprise-grade encryption, and hosting in US & EU regions.",
-  },
-  {
-    icon: Sparkles,
-    title: "No SQL Required",
-    description: "Built for product managers and founders — get deep insights without writing a single query.",
-  },
+  { tag: "01 · Query", title: "Plain English Analytics", desc: 'Ask "why did conversions drop?" and get a real answer — not a chart that makes you do the thinking.' },
+  { tag: "02 · Explore", title: "Event Explorer", desc: "Browse all your tracked events in one place. Understand what fires, when, and why — without opening your codebase." },
+  { tag: "03 · Memory", title: "Persistent Context", desc: "Magnitude remembers your business context across sessions. Every answer is informed by what matters to you." },
+  { tag: "04 · Diagnose", title: "Code-Aware Insights", desc: "When events go missing or look wrong, Magnitude cross-references your GitHub to find the root cause." },
+  { tag: "05 · Connect", title: "Multi-Source Sync", desc: "PostHog, Mixpanel, GA4, Metabase, Supabase — all in one place. One question, all your data." },
+  { tag: "06 · Ship", title: "Instant Setup", desc: "4-step onboarding. No data warehouse required. No SQL. Go from zero to insights in under 10 minutes." },
 ];
 
 export function FeaturesSection() {
   return (
-    <section id="features" className="py-24 border-t border-border">
-      <div className="container">
-        <div className="text-center mb-16">
-          <h2 className="text-3xl font-bold tracking-tight md:text-4xl mb-4">
-            Built for product teams, not data engineers
-          </h2>
-          <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
-            Everything you need to understand your users — without the complexity.
-          </p>
-        </div>
-        <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-          {features.map((feature) => (
-            <Card key={feature.title} className="bg-card border-border">
-              <CardHeader>
-                <feature.icon className="h-8 w-8 text-primary mb-2" />
-                <CardTitle className="text-lg">{feature.title}</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <p className="text-muted-foreground text-sm">{feature.description}</p>
-              </CardContent>
-            </Card>
+    <section id="features" className="px-6 md:px-12 py-20" style={{ background: "#0a0a0f", color: "#f5f3ee" }}>
+      <div className="max-w-[1200px] mx-auto">
+        <h2
+          style={{
+            fontFamily: "'Syne', sans-serif",
+            fontSize: "clamp(36px, 4vw, 52px)",
+            fontWeight: 800,
+            letterSpacing: "-2px",
+            marginBottom: 12,
+          }}
+        >
+          Built for product teams.
+        </h2>
+        <p style={{ color: "rgba(245,243,238,0.5)", fontSize: 17, marginBottom: 60 }}>
+          Not data engineers. Not analysts. You.
+        </p>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3" style={{ gap: 2 }}>
+          {features.map((f) => (
+            <div
+              key={f.tag}
+              className="p-9 transition-colors"
+              style={{ border: "1px solid rgba(255,255,255,0.07)" }}
+              onMouseEnter={(e) => (e.currentTarget.style.background = "rgba(255,255,255,0.04)")}
+              onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
+            >
+              <span
+                className="inline-block mb-4"
+                style={{
+                  fontFamily: "'DM Mono', monospace",
+                  fontSize: 11,
+                  letterSpacing: "0.08em",
+                  textTransform: "uppercase",
+                  color: "#e8ff47",
+                }}
+              >
+                {f.tag}
+              </span>
+              <h3 style={{ fontFamily: "'Syne', sans-serif", fontSize: 20, fontWeight: 700, marginBottom: 10 }}>
+                {f.title}
+              </h3>
+              <p style={{ fontSize: 14, color: "rgba(245,243,238,0.5)", lineHeight: 1.65 }}>
+                {f.desc}
+              </p>
+            </div>
           ))}
         </div>
       </div>

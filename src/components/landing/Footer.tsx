@@ -1,17 +1,21 @@
+import { Link } from "react-router-dom";
 import { Activity } from "lucide-react";
 
 export function Footer() {
   return (
-    <footer className="border-t border-border py-12">
-      <div className="container flex flex-col md:flex-row items-center justify-between gap-4">
-        <div className="flex items-center gap-2">
-          <Activity className="h-5 w-5 text-primary" />
-          <span className="font-semibold tracking-tight">Magnitude</span>
+    <footer
+      className="flex flex-col md:flex-row items-center justify-between gap-4 px-6 md:px-12 py-10"
+      style={{ borderTop: "1px solid rgba(10,10,15,0.10)" }}
+    >
+      <Link to="/" className="flex items-center gap-2 no-underline" style={{ color: "#0a0a0f" }}>
+        <div className="w-8 h-8 rounded-lg flex items-center justify-center" style={{ background: "#4f3bf5" }}>
+          <Activity className="w-[18px] h-[18px] text-white" />
         </div>
-        <p className="text-sm text-muted-foreground">
-          © {new Date().getFullYear()} Magnitude. Built for product teams.
-        </p>
-      </div>
+        <span style={{ fontFamily: "'Syne', sans-serif", fontWeight: 700, fontSize: 16 }}>Magnitude</span>
+      </Link>
+      <p style={{ fontSize: 13, color: "#7c7c8a" }}>
+        © {new Date().getFullYear()} Magnitude. Formerly Event Context Protocol.
+      </p>
     </footer>
   );
 }

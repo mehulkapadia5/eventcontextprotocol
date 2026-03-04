@@ -2,10 +2,10 @@ import { useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { HeroSection } from "@/components/landing/HeroSection";
-import { TestimonialsSection } from "@/components/landing/TestimonialsSection";
+import { IntegrationsSection } from "@/components/landing/IntegrationsSection";
 import { HowItWorksSection } from "@/components/landing/HowItWorksSection";
 import { FeaturesSection } from "@/components/landing/FeaturesSection";
-import { FAQSection } from "@/components/landing/FAQSection";
+import { QueryExamplesSection } from "@/components/landing/QueryExamplesSection";
 import { CTASection } from "@/components/landing/CTASection";
 import { Footer } from "@/components/landing/Footer";
 import { Navbar } from "@/components/landing/Navbar";
@@ -26,17 +26,28 @@ const Index = () => {
   }, [navigate]);
 
   return (
-    <div className="min-h-screen bg-background text-foreground">
+    <div style={{ background: "#f5f3ee", color: "#0a0a0f", fontFamily: "'DM Sans', sans-serif", fontWeight: 300 }}>
       <Navbar />
       <main>
         <HeroSection />
-        <TestimonialsSection />
+        <IntegrationsSection />
         <HowItWorksSection />
         <FeaturesSection />
-        <FAQSection />
+        <QueryExamplesSection />
         <CTASection />
       </main>
       <Footer />
+
+      <style>{`
+        @keyframes fadeUp {
+          from { opacity: 0; transform: translateY(20px); }
+          to { opacity: 1; transform: translateY(0); }
+        }
+        @keyframes pulse {
+          0%, 100% { opacity: 1; transform: scale(1); }
+          50% { opacity: 0.5; transform: scale(1.4); }
+        }
+      `}</style>
     </div>
   );
 };
