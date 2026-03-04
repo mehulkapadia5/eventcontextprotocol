@@ -3,8 +3,8 @@ import { Link } from "react-router-dom";
 export function HeroSection() {
   return (
     <section
-      className="relative overflow-hidden min-h-screen px-6 md:px-12"
-      style={{ paddingTop: 120, paddingBottom: 60, fontFamily: "'Mona Sans', sans-serif" }}
+      className="relative overflow-hidden min-h-screen px-6 md:px-12 flex items-center"
+      style={{ paddingTop: 100, paddingBottom: 60, fontFamily: "'Mona Sans', sans-serif" }}
     >
       {/* Grid background */}
       <div
