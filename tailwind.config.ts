@@ -95,8 +95,7 @@ export default {
   			'2xl': 'var(--shadow-2xl)'
   		},
   		fontFamily: {
-			sans: [
-				'Mona Sans',
+  			sans: [
   				'ui-sans-serif',
   				'system-ui',
   				'sans-serif',
