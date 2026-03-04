@@ -6,12 +6,15 @@ import { Input } from "@/components/ui/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
-import { Plus, Trash2, Edit, Save, X, Sparkles, CheckCircle2, Eye, Bot, PenLine, RefreshCw, Code2, Radio, UserPen } from "lucide-react";
+import { Progress } from "@/components/ui/progress";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
+import { Plus, Trash2, Edit, Save, X, Sparkles, CheckCircle2, Eye, Bot, PenLine, RefreshCw, Code2, Radio, UserPen, ChevronDown, ChevronRight, GitBranch, Search, Brain, Play, FileCode } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "sonner";
+import { useCodebaseIndexer, type PipelineStep } from "@/hooks/use-codebase-indexer";
 
 interface EventAnnotation {
   id: string;
@@ -66,6 +69,166 @@ function StatsCards({ events }: { events: MergedEvent[] }) {
         </Card>
       ))}
     </div>
+  );
+}
+
+function PipelineStepper({ currentStep, stepMessage, error, isRunning, onRun }: {
+  currentStep: PipelineStep;
+  stepMessage: string;
+  error: string | null;
+  isRunning: boolean;
+  onRun: () => void;
+}) {
+  const steps = [
+    { key: "indexing", label: "Index Repo", icon: GitBranch },
+    { key: "searching", label: "Search Events", icon: Search },
+    { key: "analyzing", label: "Analyze", icon: Brain },
+  ] as const;
+
+  const getStepState = (stepKey: string) => {
+    const order = ["indexing", "searching", "analyzing"];
+    const currentIdx = order.indexOf(currentStep);
+    const stepIdx = order.indexOf(stepKey);
+    if (currentStep === "done") return "done";
+    if (currentStep === "error") return stepIdx <= currentIdx ? "error" : "pending";
+    if (stepIdx < currentIdx) return "done";
+    if (stepIdx === currentIdx) return "active";
+    return "pending";
+  };
+
+  return (
+    <Card>
+      <CardContent className="p-4">
+        <div className="flex items-center justify-between mb-3">
+          <h4 className="text-sm font-medium">Codebase Analysis Pipeline</h4>
+          <Button size="sm" onClick={onRun} disabled={isRunning}>
+            <Play className="h-3.5 w-3.5 mr-1.5" />
+            {isRunning ? "Running..." : "Discover Events from Code"}
+          </Button>
+        </div>
+        <div className="flex items-center gap-2">
+          {steps.map((step, idx) => {
+            const state = getStepState(step.key);
+            return (
+              <div key={step.key} className="flex items-center gap-2 flex-1">
+                <div className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-xs font-medium flex-1 ${
+                  state === "active" ? "bg-primary/10 text-primary border border-primary/20" :
+                  state === "done" ? "bg-green-500/10 text-green-600 border border-green-500/20" :
+                  state === "error" ? "bg-destructive/10 text-destructive border border-destructive/20" :
+                  "bg-muted text-muted-foreground border border-transparent"
+                }`}>
+                  <step.icon className="h-3.5 w-3.5 shrink-0" />
+                  <span>{step.label}</span>
+                  {state === "active" && <RefreshCw className="h-3 w-3 animate-spin ml-auto shrink-0" />}
+                  {state === "done" && <CheckCircle2 className="h-3 w-3 ml-auto shrink-0" />}
+                </div>
+                {idx < steps.length - 1 && <ChevronRight className="h-3.5 w-3.5 text-muted-foreground shrink-0" />}
+              </div>
+            );
+          })}
+        </div>
+        {(stepMessage || error) && (
+          <p className={`text-xs mt-2 ${error ? "text-destructive" : "text-muted-foreground"}`}>
+            {error || stepMessage}
+          </p>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
+
+function IndexerStatusCard({ indexStatus, isRunning, onIndex }: {
+  indexStatus: any;
+  isRunning: boolean;
+  onIndex: () => void;
+}) {
+  if (!indexStatus) return null;
+
+  const progress = indexStatus.total_files > 0
+    ? Math.round((indexStatus.indexed_files / indexStatus.total_files) * 100)
+    : 0;
+
+  return (
+    <Card>
+      <CardContent className="p-4">
+        <div className="flex items-center justify-between mb-2">
+          <div className="flex items-center gap-2">
+            <GitBranch className="h-4 w-4 text-muted-foreground" />
+            <span className="text-sm font-medium">Repository Index</span>
+            <Badge variant="outline" className={`text-[10px] capitalize ${
+              indexStatus.status === "completed" ? "bg-green-500/10 text-green-600 border-green-500/20" :
+              indexStatus.status === "indexing" ? "bg-primary/10 text-primary border-primary/20" :
+              indexStatus.status === "failed" ? "bg-destructive/10 text-destructive border-destructive/20" :
+              ""
+            }`}>
+              {indexStatus.status}
+            </Badge>
+          </div>
+          <Button variant="outline" size="sm" onClick={onIndex} disabled={isRunning}>
+            <RefreshCw className={`h-3.5 w-3.5 mr-1.5 ${isRunning ? "animate-spin" : ""}`} />
+            Re-index
+          </Button>
+        </div>
+        {indexStatus.github_url && (
+          <p className="text-xs text-muted-foreground mb-2 truncate">{indexStatus.github_url}</p>
+        )}
+        {indexStatus.status === "indexing" && (
+          <div className="space-y-1">
+            <Progress value={progress} className="h-2" />
+            <p className="text-[10px] text-muted-foreground">{indexStatus.indexed_files} / {indexStatus.total_files} files</p>
+          </div>
+        )}
+        {indexStatus.status === "completed" && (
+          <p className="text-xs text-muted-foreground">
+            {indexStatus.indexed_files} files indexed
+            {indexStatus.last_indexed_at && ` • Last indexed ${new Date(indexStatus.last_indexed_at).toLocaleDateString(undefined, { month: "short", day: "numeric" })} at ${new Date(indexStatus.last_indexed_at).toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit" })}`}
+          </p>
+        )}
+        {indexStatus.status === "failed" && indexStatus.error_message && (
+          <p className="text-xs text-destructive">{indexStatus.error_message}</p>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
+
+function CodeLocationsRow({ eventName, locations }: {
+  eventName: string;
+  locations: Array<{ file_path: string; line_number: number; code_snippet: string; semantic_meaning: string | null }>;
+}) {
+  const [isOpen, setIsOpen] = useState(false);
+  if (locations.length === 0) return null;
+
+  return (
+    <TableRow className="bg-muted/20 border-t-0">
+      <TableCell colSpan={6} className="p-0">
+        <Collapsible open={isOpen} onOpenChange={setIsOpen}>
+          <CollapsibleTrigger className="flex items-center gap-1.5 px-4 py-1.5 text-xs text-muted-foreground hover:text-foreground w-full text-left">
+            {isOpen ? <ChevronDown className="h-3 w-3" /> : <ChevronRight className="h-3 w-3" />}
+            <FileCode className="h-3 w-3" />
+            <span>{locations.length} code location{locations.length !== 1 ? "s" : ""}</span>
+          </CollapsibleTrigger>
+          <CollapsibleContent>
+            <div className="px-4 pb-3 space-y-2">
+              {locations.map((loc, idx) => (
+                <div key={idx} className="rounded-md border bg-background p-3 space-y-1.5">
+                  <div className="flex items-center gap-2 text-xs">
+                    <span className="font-mono text-primary">{loc.file_path}</span>
+                    <Badge variant="outline" className="text-[10px]">line {loc.line_number}</Badge>
+                  </div>
+                  {loc.semantic_meaning && (
+                    <p className="text-xs text-muted-foreground">{loc.semantic_meaning}</p>
+                  )}
+                  <pre className="text-[11px] bg-muted p-2 rounded overflow-x-auto max-h-40 font-mono leading-relaxed">
+                    {loc.code_snippet}
+                  </pre>
+                </div>
+              ))}
+            </div>
+          </CollapsibleContent>
+        </Collapsible>
+      </TableCell>
+    </TableRow>
   );
 }
 
@@ -146,6 +309,7 @@ export function EventDictionary({ projectId, githubUrl: initialGithubUrl, github
   const [scanGithubPat, setScanGithubPat] = useState(initialGithubPat || "");
 
   const queryClient = useQueryClient();
+  const indexer = useCodebaseIndexer(projectId);
 
   // Fetch annotations
   const { data: annotations } = useQuery({
@@ -191,7 +355,6 @@ export function EventDictionary({ projectId, githubUrl: initialGithubUrl, github
         .eq("project_id", projectId)
         .eq("has_tracking_calls", true);
       if (error) throw error;
-      // Extract event names from snippets
       const eventNames = new Set<string>();
       let latestSync: string | null = null;
       for (const file of (data || []) as any[]) {
@@ -212,6 +375,17 @@ export function EventDictionary({ projectId, githubUrl: initialGithubUrl, github
   const codebaseFiles = codebaseFilesData?.eventNames;
   const lastSyncedAt = codebaseFilesData?.latestSync;
 
+  // Build code locations map from indexer
+  const codeLocationsMap = useMemo(() => {
+    const map = new Map<string, Array<{ file_path: string; line_number: number; code_snippet: string; semantic_meaning: string | null }>>();
+    for (const loc of indexer.codeLocations) {
+      const arr = map.get(loc.event_name) || [];
+      arr.push(loc);
+      map.set(loc.event_name, arr);
+    }
+    return map;
+  }, [indexer.codeLocations]);
+
   // Merge live events with annotations
   const mergedEvents = useMemo(() => {
     const annotationMap = new Map<string, EventAnnotation>();
@@ -229,31 +403,18 @@ export function EventDictionary({ projectId, githubUrl: initialGithubUrl, github
       const count = liveEventCounts?.get(name) || 0;
       if (ann) {
         result.push({
-          id: ann.id,
-          event_name: ann.event_name,
-          description: ann.description,
-          category: ann.category,
-          status: ann.status,
-          updated_at: ann.updated_at,
-          project_id: ann.project_id,
-          liveCount: count,
-          isAnnotated: true,
+          id: ann.id, event_name: ann.event_name, description: ann.description,
+          category: ann.category, status: ann.status, updated_at: ann.updated_at,
+          project_id: ann.project_id, liveCount: count, isAnnotated: true,
         });
       } else {
         result.push({
-          id: null,
-          event_name: name,
-          description: null,
-          category: null,
-          status: "unannotated",
-          updated_at: null,
-          project_id: projectId,
-          liveCount: count,
-          isAnnotated: false,
+          id: null, event_name: name, description: null, category: null,
+          status: "unannotated", updated_at: null, project_id: projectId,
+          liveCount: count, isAnnotated: false,
         });
       }
     }
-
     result.sort((a, b) => a.event_name.localeCompare(b.event_name));
     return result;
   }, [annotations, liveEventCounts, projectId]);
@@ -322,8 +483,18 @@ export function EventDictionary({ projectId, githubUrl: initialGithubUrl, github
     }
   };
 
+  const handleRunPipeline = async () => {
+    toast.info("Starting codebase analysis pipeline...");
+    try {
+      await indexer.runPipeline();
+      toast.success("Pipeline complete! Events discovered and analyzed.");
+    } catch (err: any) {
+      toast.error(err.message || "Pipeline failed");
+    }
+  };
+
   const getEventSource = (eventName: string): "codebase" | "live" | "manual" => {
-    if (codebaseFiles?.has(eventName)) return "codebase";
+    if (codebaseFiles?.has(eventName) || codeLocationsMap.has(eventName)) return "codebase";
     const count = liveEventCounts?.get(eventName) || 0;
     const ann = (annotations || []).find((a) => a.event_name === eventName);
     if (count > 0 && !ann) return "live";
@@ -355,6 +526,24 @@ export function EventDictionary({ projectId, githubUrl: initialGithubUrl, github
   return (
     <div className="space-y-5">
       {mergedEvents.length > 0 && <StatsCards events={mergedEvents} />}
+
+      {/* Pipeline Stepper */}
+      <PipelineStepper
+        currentStep={indexer.currentStep}
+        stepMessage={indexer.stepMessage}
+        error={indexer.error}
+        isRunning={indexer.isRunning}
+        onRun={handleRunPipeline}
+      />
+
+      {/* Indexer Status Card */}
+      {indexer.indexStatus && (
+        <IndexerStatusCard
+          indexStatus={indexer.indexStatus}
+          isRunning={indexer.isRunning}
+          onIndex={() => indexer.runStep("index").catch(() => {})}
+        />
+      )}
 
       <div className="flex items-center justify-between gap-3">
         <div className="flex items-center gap-2 flex-1">
@@ -491,7 +680,7 @@ export function EventDictionary({ projectId, githubUrl: initialGithubUrl, github
               <TableRow><TableCell colSpan={6} className="text-center py-12 text-muted-foreground">
                 <div className="flex flex-col items-center gap-2">
                   <p>No events found.</p>
-                  <p className="text-xs">Sync events from your analytics provider or add them manually.</p>
+                  <p className="text-xs">Sync events from your analytics provider or run the codebase analysis pipeline above.</p>
                 </div>
               </TableCell></TableRow>
             ) : (
@@ -505,75 +694,85 @@ export function EventDictionary({ projectId, githubUrl: initialGithubUrl, github
                     saving={upsertMutation.isPending}
                   />
                 ) : (
-                  <TableRow key={ev.event_name}>
-                    <TableCell className="font-mono text-sm font-medium">
-                      <div className="flex items-center gap-2">
-                        {ev.event_name}
-                        {ev.liveCount > 0 && (
-                          <Badge variant="secondary" className="text-[10px] h-5 px-1.5 font-mono shrink-0">
-                            {ev.liveCount.toLocaleString()}
-                          </Badge>
-                        )}
-                      </div>
-                    </TableCell>
-                    <TableCell className="max-w-[300px] text-muted-foreground">
-                      <div className="flex items-start gap-1.5">
-                        {!ev.isAnnotated && (
-                          <Sparkles className="h-3.5 w-3.5 text-amber-500 shrink-0 mt-0.5" />
-                        )}
-                        <span className="text-sm line-clamp-2" title={ev.description || ""}>
-                          {ev.description || <span className="italic text-muted-foreground/60">No description — click edit to add one</span>}
-                        </span>
-                      </div>
-                    </TableCell>
-                    <TableCell>
-                      {(() => {
-                        const source = getEventSource(ev.event_name);
-                        const icon = source === "codebase" ? <Code2 className="h-3 w-3 mr-1" /> : source === "live" ? <Radio className="h-3 w-3 mr-1" /> : <UserPen className="h-3 w-3 mr-1" />;
-                        return (
-                          <Badge variant="outline" className="text-[10px] capitalize font-normal">
-                            {icon}{source}
-                          </Badge>
-                        );
-                      })()}
-                    </TableCell>
-                    <TableCell>
-                      {ev.category && <Badge variant="outline" className="capitalize font-normal text-xs">{ev.category}</Badge>}
-                    </TableCell>
-                    <TableCell>
-                      <Badge
-                        variant="outline"
-                        className={`capitalize text-xs ${
-                          ev.status === 'verified' ? 'bg-green-500/10 text-green-600 border-green-500/20' :
-                          ev.status === 'deprecated' ? 'bg-destructive/10 text-destructive border-destructive/20' :
-                          ev.status === 'unannotated' ? 'bg-amber-500/10 text-amber-600 border-amber-500/20' :
-                          'bg-blue-500/10 text-blue-600 border-blue-500/20'
-                        }`}
-                      >
-                        {ev.status === "discovered" && <Bot className="h-3 w-3 mr-1" />}
-                        {ev.status === "unannotated" ? "New" : ev.status}
-                      </Badge>
-                    </TableCell>
-                    <TableCell>
-                      <div className="flex items-center justify-end gap-1">
-                        <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setEditingName(ev.event_name)}>
-                          <Edit className="h-4 w-4" />
-                        </Button>
-                        {ev.id && (
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            className="h-8 w-8 text-muted-foreground hover:text-destructive"
-                            onClick={() => {
-                              if (confirm("Are you sure you want to delete this annotation?")) deleteMutation.mutate(ev.id!);
-                            }}
-                          >
-                            <Trash2 className="h-4 w-4" />
+                  <>
+                    <TableRow key={ev.event_name}>
+                      <TableCell className="font-mono text-sm font-medium">
+                        <div className="flex items-center gap-2">
+                          {ev.event_name}
+                          {ev.liveCount > 0 && (
+                            <Badge variant="secondary" className="text-[10px] h-5 px-1.5 font-mono shrink-0">
+                              {ev.liveCount.toLocaleString()}
+                            </Badge>
+                          )}
+                        </div>
+                      </TableCell>
+                      <TableCell className="max-w-[300px] text-muted-foreground">
+                        <div className="flex items-start gap-1.5">
+                          {!ev.isAnnotated && (
+                            <Sparkles className="h-3.5 w-3.5 text-amber-500 shrink-0 mt-0.5" />
+                          )}
+                          <span className="text-sm line-clamp-2" title={ev.description || ""}>
+                            {ev.description || <span className="italic text-muted-foreground/60">No description — click edit to add one</span>}
+                          </span>
+                        </div>
+                      </TableCell>
+                      <TableCell>
+                        {(() => {
+                          const source = getEventSource(ev.event_name);
+                          const icon = source === "codebase" ? <Code2 className="h-3 w-3 mr-1" /> : source === "live" ? <Radio className="h-3 w-3 mr-1" /> : <UserPen className="h-3 w-3 mr-1" />;
+                          return (
+                            <Badge variant="outline" className="text-[10px] capitalize font-normal">
+                              {icon}{source}
+                            </Badge>
+                          );
+                        })()}
+                      </TableCell>
+                      <TableCell>
+                        {ev.category && <Badge variant="outline" className="capitalize font-normal text-xs">{ev.category}</Badge>}
+                      </TableCell>
+                      <TableCell>
+                        <Badge
+                          variant="outline"
+                          className={`capitalize text-xs ${
+                            ev.status === 'verified' ? 'bg-green-500/10 text-green-600 border-green-500/20' :
+                            ev.status === 'deprecated' ? 'bg-destructive/10 text-destructive border-destructive/20' :
+                            ev.status === 'unannotated' ? 'bg-amber-500/10 text-amber-600 border-amber-500/20' :
+                            'bg-blue-500/10 text-blue-600 border-blue-500/20'
+                          }`}
+                        >
+                          {ev.status === "discovered" && <Bot className="h-3 w-3 mr-1" />}
+                          {ev.status === "unannotated" ? "New" : ev.status}
+                        </Badge>
+                      </TableCell>
+                      <TableCell>
+                        <div className="flex items-center justify-end gap-1">
+                          <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setEditingName(ev.event_name)}>
+                            <Edit className="h-4 w-4" />
                           </Button>
-                        )}
-                      </div>
-                    </TableCell>
-                  </TableRow>
+                          {ev.id && (
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="h-8 w-8 text-muted-foreground hover:text-destructive"
+                              onClick={() => {
+                                if (confirm("Are you sure you want to delete this annotation?")) deleteMutation.mutate(ev.id!);
+                              }}
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          )}
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                    {/* Code Locations expandable row */}
+                    {codeLocationsMap.has(ev.event_name) && (
+                      <CodeLocationsRow
+                        key={`${ev.event_name}-locations`}
+                        eventName={ev.event_name}
+                        locations={codeLocationsMap.get(ev.event_name)!}
+                      />
+                    )}
+                  </>
                 )
               )
             )}
