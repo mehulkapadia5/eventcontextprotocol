@@ -440,10 +440,9 @@ export function StepBusinessContext({ data, onUpdate, onFinish, onClearContext, 
               <div key={i} className={`flex flex-col ${msg.role === "user" ? "items-end" : "items-start"}`}>
                 <div
                   className={`max-w-[85%] rounded-2xl px-4 py-3 text-sm font-['Mona_Sans',sans-serif] ${
-                    msg.role === "user"
-                      ? "bg-primary text-primary-foreground"
-                      : "bg-muted text-foreground"
+                    msg.role === "user" ? "bg-primary text-primary-foreground" : ""
                   }`}
+                  style={msg.role !== "user" ? { background: 'hsl(var(--chat-bubble))', color: 'hsl(var(--chat-bubble-foreground))' } : undefined}
                 >
                   {msg.role === "assistant" ? (
                     <ChatMessageContent content={msg.content} />
@@ -456,7 +455,7 @@ export function StepBusinessContext({ data, onUpdate, onFinish, onClearContext, 
             ))}
             {isLoading && messages[messages.length - 1]?.role === "user" && (
               <div className="flex justify-start">
-                <div className="bg-muted rounded-2xl px-4 py-3">
+                <div className="rounded-2xl px-4 py-3" style={{ background: 'hsl(var(--chat-bubble))' }}>
                   <TypingDots />
                 </div>
               </div>

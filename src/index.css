@@ -99,6 +99,8 @@ All colors MUST be HSL.
 
     --chat-bg: 0 0% 100%;
     --chat-foreground: 0 0% 9%;
+    --chat-bubble: 0 0% 93%;
+    --chat-bubble-foreground: 0 0% 9%;
   }
 
   .dark {
@@ -155,6 +157,8 @@ All colors MUST be HSL.
 
     --chat-bg: 0 0% 100%;
     --chat-foreground: 0 0% 9%;
+    --chat-bubble: 0 0% 93%;
+    --chat-bubble-foreground: 0 0% 9%;
   }
 }
 
