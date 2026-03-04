@@ -149,6 +149,53 @@ export type Database = {
           },
         ]
       }
+      event_code_locations: {
+        Row: {
+          code_snippet: string
+          created_at: string | null
+          event_name: string
+          file_path: string
+          id: string
+          line_number: number | null
+          project_id: string
+          semantic_meaning: string | null
+          surrounding_context: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          code_snippet: string
+          created_at?: string | null
+          event_name: string
+          file_path: string
+          id?: string
+          line_number?: number | null
+          project_id: string
+          semantic_meaning?: string | null
+          surrounding_context?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          code_snippet?: string
+          created_at?: string | null
+          event_name?: string
+          file_path?: string
+          id?: string
+          line_number?: number | null
+          project_id?: string
+          semantic_meaning?: string | null
+          surrounding_context?: string | null
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "event_code_locations_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       events: {
         Row: {
           created_at: string
@@ -247,6 +294,91 @@ export type Database = {
         }
         Relationships: []
       }
+      repo_files: {
+        Row: {
+          content: string
+          file_path: string
+          file_size: number | null
+          id: string
+          language: string | null
+          last_indexed_at: string | null
+          project_id: string
+        }
+        Insert: {
+          content: string
+          file_path: string
+          file_size?: number | null
+          id?: string
+          language?: string | null
+          last_indexed_at?: string | null
+          project_id: string
+        }
+        Update: {
+          content?: string
+          file_path?: string
+          file_size?: number | null
+          id?: string
+          language?: string | null
+          last_indexed_at?: string | null
+          project_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "repo_files_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      repo_index_status: {
+        Row: {
+          created_at: string | null
+          error_message: string | null
+          github_url: string | null
+          id: string
+          indexed_files: number | null
+          last_indexed_at: string | null
+          project_id: string
+          status: string | null
+          total_files: number | null
+          updated_at: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          error_message?: string | null
+          github_url?: string | null
+          id?: string
+          indexed_files?: number | null
+          last_indexed_at?: string | null
+          project_id: string
+          status?: string | null
+          total_files?: number | null
+          updated_at?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          error_message?: string | null
+          github_url?: string | null
+          id?: string
+          indexed_files?: number | null
+          last_indexed_at?: string | null
+          project_id?: string
+          status?: string | null
+          total_files?: number | null
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "repo_index_status_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: true
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       user_roles: {
         Row: {
           created_at: string
@@ -282,6 +414,14 @@ export type Database = {
         Returns: boolean
       }
       is_project_owner: { Args: { p_project_id: string }; Returns: boolean }
+      search_event_in_files: {
+        Args: { p_event_name: string; p_project_id: string }
+        Returns: {
+          content: string
+          file_path: string
+          file_size: number
+        }[]
+      }
     }
     Enums: {
       app_role: "admin" | "user"
