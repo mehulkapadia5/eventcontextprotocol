@@ -14,7 +14,7 @@ export interface IndexStatus {
   error_message: string | null;
 }
 
-export function useCodebaseIndexer(projectId: string) {
+export function useCodebaseIndexer(projectId: string, githubUrl?: string, githubPat?: string) {
   const [currentStep, setCurrentStep] = useState<PipelineStep>("idle");
   const [stepMessage, setStepMessage] = useState("");
   const [error, setError] = useState<string | null>(null);
@@ -84,7 +84,7 @@ export function useCodebaseIndexer(projectId: string) {
         setCurrentStep("indexing");
         setStepMessage("Fetching repository files...");
         pollStatus();
-        const resp = await supabase.functions.invoke("index-github-repo", { body: { project_id: projectId } });
+        const resp = await supabase.functions.invoke("index-github-repo", { body: { project_id: projectId, github_url: githubUrl, github_pat: githubPat } });
         stopPolling();
         if (resp.error) throw new Error(resp.error.message || "Indexing failed");
         await refetchStatus();
@@ -111,7 +111,7 @@ export function useCodebaseIndexer(projectId: string) {
       stopPolling();
       throw e;
     }
-  }, [projectId, pollStatus, stopPolling, refetchStatus, queryClient]);
+  }, [projectId, githubUrl, githubPat, pollStatus, stopPolling, refetchStatus, queryClient]);
 
   const runPipeline = useCallback(async () => {
     try {
