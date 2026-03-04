@@ -272,6 +272,7 @@ export type Database = {
           api_key: string
           created_at: string
           id: string
+          last_synced_at: string | null
           name: string
           updated_at: string
           user_id: string
@@ -280,6 +281,7 @@ export type Database = {
           api_key?: string
           created_at?: string
           id?: string
+          last_synced_at?: string | null
           name: string
           updated_at?: string
           user_id: string
@@ -288,6 +290,7 @@ export type Database = {
           api_key?: string
           created_at?: string
           id?: string
+          last_synced_at?: string | null
           name?: string
           updated_at?: string
           user_id?: string
