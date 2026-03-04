@@ -391,9 +391,9 @@ export function StepBusinessContext({ data, onUpdate, onFinish, onClearContext, 
     // No longer showing a separate summary screen - chat continues seamlessly
 
     return (
-      <div className="flex flex-col h-full">
+      <div className="flex flex-col h-full" style={{ background: 'hsl(var(--chat-bg))', color: 'hsl(var(--chat-foreground))' }}>
         {/* Top bar with understanding %, memory, and delete */}
-        <div className="border-b border-border bg-background px-4 py-3">
+        <div className="border-b border-border px-4 py-3" style={{ background: 'hsl(var(--chat-bg))' }}>
           <div className="max-w-2xl mx-auto flex items-center gap-3">
             {contextReady ? (
               <Sparkles className="h-4 w-4 text-primary shrink-0" />
@@ -434,7 +434,7 @@ export function StepBusinessContext({ data, onUpdate, onFinish, onClearContext, 
         </div>
 
         {/* Messages area */}
-        <div className="flex-1 overflow-y-auto bg-card">
+        <div className="flex-1 overflow-y-auto" style={{ background: 'hsl(var(--chat-bg))' }}>
           <div className="max-w-2xl mx-auto px-4 py-6 space-y-6">
             {messages.map((msg, i) => (
               <div key={i} className={`flex flex-col ${msg.role === "user" ? "items-end" : "items-start"}`}>
@@ -466,7 +466,7 @@ export function StepBusinessContext({ data, onUpdate, onFinish, onClearContext, 
         </div>
 
         {/* Prompt suggestions + Input area */}
-        <div className="border-t border-border bg-background px-4 py-3">
+        <div className="border-t border-border px-4 py-3" style={{ background: 'hsl(var(--chat-bg))' }}>
           <div className="max-w-2xl mx-auto space-y-3">
             {messages.length <= 2 && !isLoading && (
               <div className="flex flex-wrap gap-2 justify-center">
