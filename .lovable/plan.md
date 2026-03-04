@@ -1,63 +1,94 @@
 
 
-# Fix Event Sync: Incremental Deduplication and Accurate Totals
+# Full Codebase Clone — Implementation Plan
 
-## Problem
-1. Every sync blindly fetches the latest 500 events and inserts them, creating duplicates. Users/events numbers don't grow -- they just multiply.
-2. The dashboard overview query limits to 1000 rows, so stats are always based on a small window rather than the full accumulated dataset.
+## What We're Building
 
-## Solution
+A pipeline that fully indexes a GitHub repository into the database, replacing the current shallow 20-file scan. This is Step 1 of the larger Codebase Indexer pipeline (index → search → analyze).
 
-### 1. Add a `last_synced_at` column to `projects` table
-Track when each project last synced so we only fetch events newer than that timestamp.
+## Database Changes
 
-### 2. Add a unique constraint on `events` to prevent duplicates
-Add a composite unique index on `(project_id, event_name, user_identifier, timestamp)` so duplicate inserts are ignored via upsert.
+### New Tables
 
-### 3. Update `fetch-external-events` edge function
-- Query the project's `last_synced_at` to determine the start date
-- For PostHog: add a `WHERE timestamp > last_synced_at` filter to the HogQL query
-- For Mixpanel: use `last_synced_at` as the `from_date` instead of hardcoded 7 days
-- For GA4: use `last_synced_at` as the `startDate`
-- For Supabase: add a `.gt('created_at', last_synced_at)` filter
-- Use `.upsert()` with `onConflict` instead of `.insert()` to skip duplicates
-- After successful insert, update `last_synced_at` on the project to `now()`
-- Add pagination: loop until fewer than 500 results are returned (for PostHog/Mixpanel)
+**`repo_files`** — stores full file contents from GitHub
+- `id` UUID PK, `project_id` UUID FK→projects (CASCADE), `file_path` TEXT, `content` TEXT, `file_size` INTEGER, `language` TEXT, `last_indexed_at` TIMESTAMPTZ
+- Unique on `(project_id, file_path)`, indexes on `project_id` and `(project_id, file_path)`
 
-### 4. Fix dashboard overview to use aggregate counts instead of row limits
-- Replace the events query (which fetches 1000 raw rows) with targeted aggregate queries:
-  - Total events count: `select count` with `head: true`
-  - Unique users: a dedicated `COUNT(DISTINCT user_identifier)` via an RPC or raw count
-  - Events today: filtered count query
-  - Top events: a grouped count query
-  - Volume chart and recent events: keep limited queries but only for display purposes
-- This ensures stats reflect ALL accumulated data, not just the first 1000 rows
+**`repo_index_status`** — tracks indexing progress per project
+- `id` UUID PK, `project_id` UUID FK→projects (CASCADE, UNIQUE), `github_url` TEXT, `total_files` INTEGER, `indexed_files` INTEGER, `status` TEXT (pending/indexing/completed/failed), `last_indexed_at` TIMESTAMPTZ, `error_message` TEXT, `created_at`, `updated_at`
 
-## Technical Details
+**`event_code_locations`** — maps events to code locations (for later pipeline steps)
+- `id` UUID PK, `project_id` UUID FK→projects, `event_name` TEXT, `file_path` TEXT, `line_number` INTEGER, `code_snippet` TEXT, `surrounding_context` TEXT, `semantic_meaning` TEXT, `created_at`, `updated_at`
 
-### Database Migration
-```sql
--- Add last_synced_at to projects
-ALTER TABLE projects ADD COLUMN last_synced_at timestamptz DEFAULT NULL;
+**RLS**: Owner + admin access pattern using `is_project_owner()` and `has_role()`, same as `codebase_files`.
 
--- Add unique index to prevent duplicate events
-CREATE UNIQUE INDEX events_dedup_idx 
-ON events (project_id, event_name, user_identifier, timestamp)
-NULLS NOT DISTINCT;
+**RPC function**: `search_event_in_files(p_project_id, p_event_name)` — returns matching files using `position()`.
+
+## Edge Function: `index-github-repo`
+
+Core logic:
+1. Accept `project_id`. Get `github_url`/`github_pat` from `profiles.onboarding_data`
+2. Set `repo_index_status` to `indexing`
+3. Fetch full tree via GitHub Trees API (`?recursive=1`)
+4. Filter to code files (`.ts`, `.tsx`, `.js`, `.jsx`, `.py`, `.go`, `.rb`, `.java`, `.kt`, `.swift`, `.vue`, `.svelte`, `.php`). Skip `node_modules`, `dist`, `build`, `.git`, vendor, lock files, binaries
+5. Prioritize: components/pages/hooks/services/api/lib/utils folders first
+6. Cap at 500 files
+7. Fetch content in batches of 5 via Contents API, base64-decode, upsert into `repo_files`
+8. Update `repo_index_status.indexed_files` after each batch
+9. Handle 403/429 with exponential backoff
+10. On completion, set status to `completed` with timestamp
+
+Auth: Bearer JWT, same pattern as existing functions.
+
+## Edge Functions: `search-events-in-codebase` and `analyze-event-semantics`
+
+**`search-events-in-codebase`**: Fetches unique event names from `events` table, searches `repo_files` using the `search_event_in_files` RPC, extracts line numbers and ±10/±30 line context snippets, stores in `event_code_locations`.
+
+**`analyze-event-semantics`**: Fetches `event_code_locations` grouped by event, sends batches of 5-10 events to AI (same LLM routing as existing functions), updates `semantic_meaning` and upserts `event_annotations` with status='verified'.
+
+**`get-event-context`**: Simple retrieval — returns code locations and annotations by event name or file path.
+
+## Frontend Changes
+
+### `useCodebaseIndexer` hook
+Orchestrates the 3-step pipeline:
+```
+Step 1: index-github-repo (poll repo_index_status for progress)
+Step 2: search-events-in-codebase
+Step 3: analyze-event-semantics
+```
+Exposes: `currentStep`, `progress`, `isRunning`, `runPipeline()`, `runStep()`, `indexStatus`.
+
+### Event Dictionary UI enhancements
+- **Indexer Status Card**: repo URL, status badge, progress bar (files indexed/total), "Index Codebase" / "Re-index" button, last indexed timestamp
+- **Pipeline stepper**: 3-step visual indicator (Index → Search → Analyze) with "Discover Events from Code" button
+- **Code Locations per event**: expandable row section showing file path, line number, code snippet, semantic meaning
+- Helpful message if no events synced yet
+
+## Config Updates
+
+Add to `supabase/config.toml`:
+```toml
+[functions.index-github-repo]
+verify_jwt = false
+
+[functions.search-events-in-codebase]
+verify_jwt = false
+
+[functions.analyze-event-semantics]
+verify_jwt = false
+
+[functions.get-event-context]
+verify_jwt = false
 ```
 
-### Edge Function Changes (`fetch-external-events/index.ts`)
-- Read `last_synced_at` from the project row before fetching
-- Pass the timestamp as a filter to each provider's API call
-- Switch from `.insert()` to `.upsert(..., { onConflict: 'project_id,event_name,user_identifier,timestamp', ignoreDuplicates: true })`
-- After success, run `UPDATE projects SET last_synced_at = now() WHERE id = projectId`
+## Implementation Order
 
-### Dashboard Changes (`DashboardOverview.tsx`)
-- Replace single `.select("*").limit(1000)` with:
-  - A count query for total events (using `{ count: 'exact', head: true }`)
-  - A limited query for recent events display (keep `.limit(20)` for the table)
-  - Aggregate queries via `execute_readonly_query` RPC for charts (top events, daily volume)
-- This way stats always reflect the full dataset regardless of size
+1. Database migration (3 tables + RLS + RPC)
+2. `index-github-repo` edge function
+3. `search-events-in-codebase` edge function
+4. `analyze-event-semantics` edge function
+5. `get-event-context` edge function
+6. `useCodebaseIndexer` hook
+7. Event Dictionary UI (status card, pipeline stepper, code locations)
 
-### Admin Events Changes (`AdminEvents.tsx`)
-- Same pattern: use count queries for totals, keep row-level queries only for display tables
