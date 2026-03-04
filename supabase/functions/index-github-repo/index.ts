@@ -20,7 +20,7 @@ function parseRepoUrl(url: string): { owner: string; repo: string } | null {
 async function fetchGitHub(url: string, pat?: string, retries = 3): Promise<any> {
   const headers: Record<string, string> = {
     Accept: "application/vnd.github.v3+json",
-    "User-Agent": "ECP-App",
+    "User-Agent": "Magnitude-App",
   };
   if (pat) headers.Authorization = `Bearer ${pat}`;
 

@@ -39,7 +39,7 @@ export function OnboardingWizard({ userId, onComplete }: OnboardingWizardProps) 
         .eq("user_id", userId);
 
       if (error) throw error;
-      toast.success("Setup complete! Welcome to ECP.");
+      toast.success("Setup complete! Welcome to Magnitude.");
       onComplete();
     } catch (err) {
       toast.error("Failed to save. Please try again.");
@@ -56,7 +56,7 @@ export function OnboardingWizard({ userId, onComplete }: OnboardingWizardProps) 
         <div className="text-center space-y-1">
           <div className="flex items-center justify-center gap-2 mb-4">
             <Activity className="h-5 w-5 text-primary" />
-            <span className="font-mono font-bold text-lg">ECP</span>
+            <span className="font-semibold tracking-tight text-lg">Magnitude</span>
           </div>
           <p className="text-sm text-muted-foreground">
             Step {step + 1} of {steps.length} — {steps[step]}

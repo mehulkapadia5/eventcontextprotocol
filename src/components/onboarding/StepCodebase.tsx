@@ -45,7 +45,7 @@ export function StepCodebase({ data, onUpdate, onNext, onSkip, projectId }: Step
         </div>
         <h2 className="text-2xl font-bold">Connect Codebase</h2>
         <p className="text-muted-foreground max-w-md mx-auto">
-          Link your GitHub repository so ECP can provide code-aware insights and context.
+          Link your GitHub repository so Magnitude can provide code-aware insights and context.
         </p>
       </div>
 

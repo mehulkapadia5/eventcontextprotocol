@@ -17,7 +17,7 @@ export function HeroSection() {
         </h1>
 
         <p className="max-w-2xl text-lg text-muted-foreground md:text-xl">
-          Connect your analytics tools, link your codebase, and let ECP give you
+          Connect your analytics tools, link your codebase, and let Magnitude give you
           AI-powered insights — all in under 5 minutes.
         </p>
 

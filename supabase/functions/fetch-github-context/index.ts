@@ -9,7 +9,7 @@ const corsHeaders = {
 async function fetchGitHub(url: string, pat?: string) {
   const headers: Record<string, string> = {
     Accept: "application/vnd.github.v3+json",
-    "User-Agent": "ECP-App",
+    "User-Agent": "Magnitude-App",
   };
   if (pat) headers.Authorization = `Bearer ${pat}`;
   const resp = await fetch(url, { headers });
