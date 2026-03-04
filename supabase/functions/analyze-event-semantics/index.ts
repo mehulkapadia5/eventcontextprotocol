@@ -46,10 +46,9 @@ serve(async (req) => {
     const supabase = createClient(supabaseUrl, Deno.env.get("SUPABASE_ANON_KEY")!, {
       global: { headers: { Authorization: authHeader } },
     });
-    const token = authHeader.replace("Bearer ", "");
-    const { data: claims, error: claimsErr } = await supabase.auth.getClaims(token);
-    if (claimsErr || !claims?.claims) throw new Error("Unauthorized");
-    const userId = claims.claims.sub as string;
+    const { data: { user }, error: userErr } = await supabase.auth.getUser();
+    if (userErr || !user) throw new Error("Unauthorized");
+    const userId = user.id;
 
     const serviceClient = createClient(supabaseUrl, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
 
