@@ -434,7 +434,7 @@ export function StepBusinessContext({ data, onUpdate, onFinish, onClearContext, 
         </div>
 
         {/* Messages area */}
-        <div className="flex-1 overflow-y-auto">
+        <div className="flex-1 overflow-y-auto bg-card">
           <div className="max-w-2xl mx-auto px-4 py-6 space-y-6">
             {messages.map((msg, i) => (
               <div key={i} className={`flex flex-col ${msg.role === "user" ? "items-end" : "items-start"}`}>
