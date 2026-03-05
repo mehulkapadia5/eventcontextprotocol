@@ -34,10 +34,21 @@ const proseClasses = [
   "[&_blockquote]:border-l-2 [&_blockquote]:border-primary [&_blockquote]:pl-3 [&_blockquote]:my-2 [&_blockquote]:text-muted-foreground",
 ].join(" ");
 
+/**
+ * Fix markdown tables where rows are concatenated on a single line.
+ * e.g. "| a | b || c | d |" → "| a | b |\n| c | d |"
+ * Also ensures the separator row (|:---|) is on its own line.
+ */
+function fixMarkdownTables(md: string): string {
+  // Split "|| " that indicates a new row crammed onto the same line
+  // Pattern: end-of-cell "| |" or "||" followed by start of next row
+  return md.replace(/\|\s*\|\s*(?=[A-Za-z0-9:_\-])/g, "|\n| ");
+}
+
 function MarkdownBlock({ content }: { content: string }) {
   return (
     <div className={proseClasses}>
-      <ReactMarkdown>{content}</ReactMarkdown>
+      <ReactMarkdown>{fixMarkdownTables(content)}</ReactMarkdown>
     </div>
   );
 }
