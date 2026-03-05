@@ -230,20 +230,22 @@ export function StepBusinessContext({ data, onUpdate, onFinish, onClearContext, 
     const text = input.trim();
     if (!text || isLoading) return;
 
-    // Check credits
-    if (isCreditsExhausted) {
-      toast.error("You've used all your credits. Please contact us to get more credits.");
-      return;
-    }
-
-    if (onConsumeCredit) {
-      const ok = await onConsumeCredit();
-      if (!ok) {
-        toast.error("Failed to consume credit. Please try again.");
+    // Only consume credits in analytics mode (after business understanding is complete)
+    if (contextReady) {
+      if (isCreditsExhausted) {
+        toast.error("You've used all your credits. Please contact us to get more credits.");
         return;
       }
-      if (isCreditsLow) {
-        toast.warning("You have 1 credit remaining!");
+
+      if (onConsumeCredit) {
+        const ok = await onConsumeCredit();
+        if (!ok) {
+          toast.error("Failed to consume credit. Please try again.");
+          return;
+        }
+        if (isCreditsLow) {
+          toast.warning("You have 1 credit remaining!");
+        }
       }
     }
 
