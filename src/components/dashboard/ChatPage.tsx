@@ -339,6 +339,7 @@ export function ChatPage() {
                 {credits}
               </Badge>
             </div>
+            <span className="text-[10px] text-muted-foreground">Resets daily at 12:00 AM IST</span>
             {(isExhausted || isLow) && (
               <Button variant="default" size="sm" className="w-full text-xs" onClick={() => setPricingOpen(true)}>
                 Buy Credits
