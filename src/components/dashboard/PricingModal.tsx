@@ -72,7 +72,7 @@ const PLANS: PlanDef[] = [
     name: "Starter",
     description: "For individuals getting started with product analytics.",
     priceUSD: "$20",
-    priceINR: "₹1,665",
+    priceINR: "₹1,899",
     period: "per month",
     subtitle: "",
     icon: Zap,
@@ -92,7 +92,7 @@ const PLANS: PlanDef[] = [
     name: "Pro",
     description: "For teams that need deeper insights and more capacity.",
     priceUSD: "$50",
-    priceINR: "₹4,163",
+    priceINR: "₹4,599",
     period: "per month",
     subtitle: "",
     icon: Rocket,
@@ -112,7 +112,7 @@ const PLANS: PlanDef[] = [
     name: "Business",
     description: "Built for orgs needing flexibility, scale, and governance.",
     priceUSD: "$100",
-    priceINR: "₹8,325",
+    priceINR: "₹8,999",
     period: "per month",
     subtitle: "Flexible billing",
     icon: Building2,
@@ -138,9 +138,9 @@ interface AddonDef {
 }
 
 const ADDONS: AddonDef[] = [
-  { id: "addon_50", queries: 50, priceUSD: "$12", priceINR: "₹999", description: "Occasional overages" },
-  { id: "addon_150", queries: 150, priceUSD: "$30", priceINR: "₹2,499", description: "Regular top-ups" },
-  { id: "addon_500", queries: 500, priceUSD: "$80", priceINR: "₹6,663", description: "Heavy months" },
+  { id: "addon_50", queries: 50, priceUSD: "$12", priceINR: "₹1,099", description: "Occasional overages" },
+  { id: "addon_150", queries: 150, priceUSD: "$30", priceINR: "₹2,749", description: "Regular top-ups" },
+  { id: "addon_500", queries: 500, priceUSD: "$80", priceINR: "₹7,299", description: "Heavy months" },
 ];
 
 function loadRazorpayScript(): Promise<boolean> {
