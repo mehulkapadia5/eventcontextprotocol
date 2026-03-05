@@ -189,10 +189,10 @@ export function PricingSection() {
                 <span style={{ fontSize: "2.2rem", fontWeight: 700, color: "#0a0a0f" }}>
                   {showINR ? plan.priceINR : plan.priceUSD}
                 </span>
-                {plan.period && (
-                  <span style={{ fontSize: "0.85rem", color: "#888", marginLeft: 6 }}>{plan.period}</span>
-                )}
               </div>
+              {plan.period && (
+                <p style={{ fontSize: "0.85rem", color: "#888" }}>{plan.period}</p>
+              )}
               <p style={{ fontSize: "0.75rem", color: "#999" }}>
                 {plan.subtitle || "\u00A0"}
               </p>
