@@ -40,6 +40,11 @@ interface StepBusinessContextProps {
   initialMessages?: Msg[];
   onMessagesChange?: (messages: { role: "user" | "assistant"; content: string }[]) => void;
   onNewChat?: () => void;
+  credits?: number | null;
+  isCreditsLow?: boolean;
+  isCreditsExhausted?: boolean;
+  onConsumeCredit?: () => Promise<boolean>;
+  onCreditsRefetch?: () => Promise<void>;
 }
 
 function formatBytes(bytes: number): string {
@@ -51,7 +56,7 @@ function formatBytes(bytes: number): string {
 const CHAT_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/business-context-chat`;
 const ANALYTICS_CHAT_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/analytics-chat`;
 
-export function StepBusinessContext({ data, onUpdate, onFinish, onClearContext, isSubmitting, inline, fullPage, repoContext, savedConfidence, onConfidenceChange, initialMessages: initialMessagesProp, onMessagesChange, onNewChat }: StepBusinessContextProps) {
+export function StepBusinessContext({ data, onUpdate, onFinish, onClearContext, isSubmitting, inline, fullPage, repoContext, savedConfidence, onConfidenceChange, initialMessages: initialMessagesProp, onMessagesChange, onNewChat, credits, isCreditsLow, isCreditsExhausted, onConsumeCredit, onCreditsRefetch }: StepBusinessContextProps) {
   const hasExistingData = !!(data.product_description || data.audience || data.goals);
   const initialMessage = hasExistingData
     ? "Welcome back! I remember your business context. ✨ You can ask me analytics questions or update your context anytime."
@@ -223,6 +228,23 @@ export function StepBusinessContext({ data, onUpdate, onFinish, onClearContext, 
   const send = async () => {
     const text = input.trim();
     if (!text || isLoading) return;
+
+    // Check credits
+    if (isCreditsExhausted) {
+      toast.error("You've used all your credits. Please contact us to get more credits.");
+      return;
+    }
+
+    if (onConsumeCredit) {
+      const ok = await onConsumeCredit();
+      if (!ok) {
+        toast.error("Failed to consume credit. Please try again.");
+        return;
+      }
+      if (isCreditsLow) {
+        toast.warning("You have 1 credit remaining!");
+      }
+    }
 
     const userMsg: Msg = { role: "user", content: text, timestamp: new Date() };
     const newMessages = [...messages, userMsg];
@@ -485,11 +507,16 @@ export function StepBusinessContext({ data, onUpdate, onFinish, onClearContext, 
                 )}
               </div>
             )}
+            {isCreditsExhausted && (
+              <div className="text-center text-sm text-destructive font-medium py-2">
+                You've used all your credits. Contact us to get more.
+              </div>
+            )}
             <div className="relative">
               <Textarea
                 ref={inputRef}
                 className="min-h-[80px] max-h-[160px] resize-none rounded-xl pr-12 text-sm"
-                placeholder={contextReady ? "Type a message or click a suggestion..." : "Tell us about your business..."}
+                placeholder={isCreditsExhausted ? "No credits remaining..." : contextReady ? "Type a message or click a suggestion..." : "Tell us about your business..."}
                 value={input}
                 onChange={(e) => setInput(e.target.value)}
                 onKeyDown={(e) => {
@@ -501,7 +528,7 @@ export function StepBusinessContext({ data, onUpdate, onFinish, onClearContext, 
                     onNewChat?.();
                   }
                 }}
-                disabled={isLoading}
+                disabled={isLoading || isCreditsExhausted}
               />
               <Button
                 size="icon"
