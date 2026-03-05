@@ -218,6 +218,7 @@ export function PricingModal({ open, onOpenChange, onSuccess, userEmail }: Prici
         },
       };
 
+      onOpenChange(false);
       const rzp = new window.Razorpay(options);
       rzp.open();
     } catch (e: any) {
