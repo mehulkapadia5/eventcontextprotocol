@@ -279,40 +279,41 @@ export function PricingModal({ open, onOpenChange, onSuccess, userEmail }: Prici
         </div>
 
         {/* Subscription Tiers */}
-        <div className="grid grid-cols-5 gap-0 border-t border-border mx-6 mt-4">
+        <div className="overflow-x-auto mx-6 mt-4">
+          <div className="grid grid-cols-5 gap-0 border-t border-border min-w-[800px]">
           {PLANS.map((plan, index) => (
             <div
               key={plan.id}
-              className={`flex flex-col p-5 ${
-                index < PLANS.length - 1 ? "md:border-r border-border" : ""
+              className={`flex flex-col p-4 ${
+                index < PLANS.length - 1 ? "border-r border-border" : ""
               } ${plan.popular ? "bg-accent/30" : ""}`}
             >
               {/* Header */}
-              <div className="mb-4">
+              <div className="mb-3">
                 <div className="flex items-center gap-2 mb-1">
-                  <h3 className="text-base font-semibold">{plan.name}</h3>
+                  <h3 className="text-sm font-semibold">{plan.name}</h3>
                   {plan.popular && (
                     <Badge variant="secondary" className="text-[10px] px-1.5 py-0">
                       Popular
                     </Badge>
                   )}
                 </div>
-                <p className="text-xs text-muted-foreground leading-relaxed min-h-[2.5rem]">
+                <p className="text-[11px] text-muted-foreground leading-relaxed min-h-[2.5rem]">
                   {plan.description}
                 </p>
               </div>
 
               {/* Price */}
-              <div className="h-[4.5rem]">
-                <div className="mb-1">
-                  <span className="text-3xl font-bold">
+              <div className="h-[4.5rem] mb-1">
+                <div>
+                  <span className="text-2xl font-bold">
                     {isINR ? plan.priceINR : plan.priceUSD}
                   </span>
-                  {plan.period && (
-                    <span className="text-sm text-muted-foreground ml-1.5">{plan.period}</span>
-                  )}
                 </div>
-                <p className="text-xs text-muted-foreground">
+                {plan.period && (
+                  <p className="text-xs text-muted-foreground">{plan.period}</p>
+                )}
+                <p className="text-[11px] text-muted-foreground">
                   {plan.subtitle || "\u00A0"}
                 </p>
               </div>
@@ -346,8 +347,9 @@ export function PricingModal({ open, onOpenChange, onSuccess, userEmail }: Prici
                   </li>
                 ))}
               </ul>
-            </div>
-          ))}
+          </div>
+            ))}
+          </div>
         </div>
 
         <Separator className="mx-6" />
