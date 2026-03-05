@@ -4,7 +4,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Progress } from "@/components/ui/progress";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Briefcase, Send, Brain, Trash2, Database, CheckCircle2, Target, Users, Rocket, BarChart3, Sparkles, Cpu } from "lucide-react";
+import { Briefcase, Send, Brain, Trash2, Database, CheckCircle2, Target, Users, Rocket, BarChart3, Sparkles, Cpu, Coins } from "lucide-react";
 import { PromptSuggestion } from "@/components/ui/prompt-suggestion";
 import ReactMarkdown from "react-markdown";
 import { ChatMessageContent } from "@/components/chat/ChatMessageContent";
@@ -45,6 +45,7 @@ interface StepBusinessContextProps {
   isCreditsExhausted?: boolean;
   onConsumeCredit?: () => Promise<boolean>;
   onCreditsRefetch?: () => Promise<void>;
+  onOpenPricing?: () => void;
 }
 
 function formatBytes(bytes: number): string {
@@ -56,7 +57,7 @@ function formatBytes(bytes: number): string {
 const CHAT_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/business-context-chat`;
 const ANALYTICS_CHAT_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/analytics-chat`;
 
-export function StepBusinessContext({ data, onUpdate, onFinish, onClearContext, isSubmitting, inline, fullPage, repoContext, savedConfidence, onConfidenceChange, initialMessages: initialMessagesProp, onMessagesChange, onNewChat, credits, isCreditsLow, isCreditsExhausted, onConsumeCredit, onCreditsRefetch }: StepBusinessContextProps) {
+export function StepBusinessContext({ data, onUpdate, onFinish, onClearContext, isSubmitting, inline, fullPage, repoContext, savedConfidence, onConfidenceChange, initialMessages: initialMessagesProp, onMessagesChange, onNewChat, credits, isCreditsLow, isCreditsExhausted, onConsumeCredit, onCreditsRefetch, onOpenPricing }: StepBusinessContextProps) {
   const hasExistingData = !!(data.product_description || data.audience || data.goals);
   const initialMessage = hasExistingData
     ? "Welcome back! I remember your business context. ✨ You can ask me analytics questions or update your context anytime."
@@ -508,8 +509,14 @@ export function StepBusinessContext({ data, onUpdate, onFinish, onClearContext, 
               </div>
             )}
             {isCreditsExhausted && (
-              <div className="text-center text-sm text-destructive font-medium py-2">
-                You've used all your credits. Contact us to get more.
+              <div className="text-center text-sm text-destructive font-medium py-2 flex items-center justify-center gap-3">
+                <span>You've used all your credits.</span>
+                {onOpenPricing && (
+                  <Button variant="default" size="sm" className="text-xs gap-1" onClick={onOpenPricing}>
+                    <Coins className="h-3 w-3" />
+                    Buy Credits
+                  </Button>
+                )}
               </div>
             )}
             <div className="relative">
