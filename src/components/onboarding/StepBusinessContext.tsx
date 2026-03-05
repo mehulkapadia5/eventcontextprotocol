@@ -496,7 +496,7 @@ export function StepBusinessContext({ data, onUpdate, onFinish, onClearContext, 
                   <Send className="h-4 w-4" />
                 </Button>
               </div>
-              {contextReady && credits !== null && credits !== undefined && credits <= 5 && (
+              {credits !== null && credits !== undefined && credits <= 5 && (
                 <div className="flex items-center justify-center gap-2 text-[11px] text-muted-foreground pt-1">
                   <span>Free Messages Left: <strong>{credits}</strong> · Resets daily at 12:00 AM IST</span>
                   {onOpenPricing && (
@@ -628,7 +628,7 @@ export function StepBusinessContext({ data, onUpdate, onFinish, onClearContext, 
                 <Send className="h-4 w-4" />
               </Button>
             </div>
-            {contextReady && credits !== null && credits !== undefined && credits <= 5 && (
+            {credits !== null && credits !== undefined && credits <= 5 && (
               <div className="flex items-center justify-center gap-2 text-[11px] text-muted-foreground pt-1">
                 <span>Free Messages Left: <strong>{credits}</strong> · Resets daily at 12:00 AM IST</span>
                 {onOpenPricing && (
