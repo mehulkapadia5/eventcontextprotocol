@@ -365,7 +365,7 @@ export function ChatPage() {
                 <Button
                   variant="ghost"
                   size="icon"
-                  className="h-6 w-6 shrink-0 opacity-100 text-foreground/80 hover:text-foreground hover:bg-background/80 transition-colors"
+                  className="h-6 w-6 shrink-0 opacity-0 group-hover:opacity-100 text-foreground/80 hover:text-foreground hover:bg-background/80 transition-all"
                   onClick={(e) => {
                     e.stopPropagation();
                     handleDeleteConversation(conv.id);
