@@ -215,41 +215,6 @@ export function PricingSection() {
         ))}
       </div>
 
-      {/* Add-on Credits */}
-      <div style={{ marginTop: 40 }}>
-        <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 4 }}>
-          <Plus style={{ width: 14, height: 14, color: "#6366f1" }} />
-          <h3 style={{ fontSize: "0.95rem", fontWeight: 600, color: "#0a0a0f" }}>
-            Running low? Buy extra queries
-          </h3>
-        </div>
-        <p style={{ fontSize: "0.8rem", color: "#888", marginBottom: 16 }}>
-          No subscription needed. Credits never expire — use them anytime.
-        </p>
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 12 }}>
-          {ADDONS.map((addon) => (
-            <div
-              key={addon.queries}
-              style={{
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "space-between",
-                border: "1px solid #ddd",
-                borderRadius: 10,
-                padding: "12px 16px",
-              }}
-            >
-              <div>
-                <p style={{ fontWeight: 600, fontSize: "0.9rem", color: "#0a0a0f" }}>{addon.queries} queries</p>
-                <p style={{ fontSize: "0.75rem", color: "#888" }}>{addon.description}</p>
-              </div>
-              <Button size="sm" variant="outline" onClick={() => navigate("/auth")}>
-                {showINR ? addon.priceINR : addon.priceUSD}
-              </Button>
-            </div>
-          ))}
-        </div>
-      </div>
     </section>
   );
 }
