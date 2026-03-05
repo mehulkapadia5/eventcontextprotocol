@@ -7,10 +7,14 @@ const corsHeaders = {
     "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
-const PLANS: Record<string, { name: string; credits: number; amount_paise: number }> = {
-  starter: { name: "Starter", credits: 50, amount_paise: 49900 },
-  pro: { name: "Pro", credits: 200, amount_paise: 149900 },
-  business: { name: "Business", credits: 500, amount_paise: 299900 },
+// Plans with both USD (cents) and INR (paise) pricing
+const PLANS: Record<string, { name: string; credits: number; usd_cents: number; inr_paise: number }> = {
+  starter:   { name: "Starter",   credits: 100,  usd_cents: 2000,   inr_paise: 166500 },
+  pro:       { name: "Pro",       credits: 350,  usd_cents: 5000,   inr_paise: 416300 },
+  business:  { name: "Business",  credits: 1000, usd_cents: 10000,  inr_paise: 832500 },
+  addon_50:  { name: "50 Queries",  credits: 50,  usd_cents: 1200,  inr_paise: 99900 },
+  addon_150: { name: "150 Queries", credits: 150, usd_cents: 3000,  inr_paise: 249900 },
+  addon_500: { name: "500 Queries", credits: 500, usd_cents: 8000,  inr_paise: 666300 },
 };
 
 serve(async (req) => {
@@ -36,9 +40,13 @@ serve(async (req) => {
     const { data: { user }, error: userError } = await anonClient.auth.getUser(authHeader.replace("Bearer ", ""));
     if (userError || !user) throw new Error("Invalid auth token");
 
-    const { plan_id } = await req.json();
+    const { plan_id, currency } = await req.json();
     const plan = PLANS[plan_id];
     if (!plan) throw new Error(`Invalid plan: ${plan_id}`);
+
+    const isINR = currency === "INR";
+    const amount = isINR ? plan.inr_paise : plan.usd_cents;
+    const cur = isINR ? "INR" : "USD";
 
     // Create Razorpay order
     const credentials = btoa(`${RAZORPAY_KEY_ID}:${RAZORPAY_KEY_SECRET}`);
@@ -49,8 +57,8 @@ serve(async (req) => {
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        amount: plan.amount_paise,
-        currency: "INR",
+        amount,
+        currency: cur,
         receipt: `order_${user.id}_${Date.now()}`,
         notes: {
           user_id: user.id,
@@ -67,12 +75,12 @@ serve(async (req) => {
 
     const rzpOrder = await rzpResp.json();
 
-    // Store order in DB
+    // Store order in DB (always store in paise for INR, cents for USD)
     await supabase.from("payment_orders").insert({
       user_id: user.id,
       razorpay_order_id: rzpOrder.id,
       plan_id,
-      amount_paise: plan.amount_paise,
+      amount_paise: amount,
       credits: plan.credits,
       status: "created",
     });
@@ -80,8 +88,8 @@ serve(async (req) => {
     return new Response(
       JSON.stringify({
         order_id: rzpOrder.id,
-        amount: plan.amount_paise,
-        currency: "INR",
+        amount,
+        currency: cur,
         key_id: RAZORPAY_KEY_ID,
         plan_name: plan.name,
         credits: plan.credits,
