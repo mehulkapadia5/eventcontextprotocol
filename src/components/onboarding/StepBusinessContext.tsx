@@ -411,8 +411,96 @@ export function StepBusinessContext({ data, onUpdate, onFinish, onClearContext, 
 
   // Full page layout (ChatGPT-style)
   if (fullPage) {
-    // No longer showing a separate summary screen - chat continues seamlessly
+    const hasUserMessages = messages.some((m) => m.role === "user");
+    const isEmptyState = !hasUserMessages && !isLoading;
 
+    // Centered welcome screen (no messages yet)
+    if (isEmptyState) {
+      return (
+        <div className="flex flex-col h-full items-center justify-center" style={{ background: 'hsl(var(--chat-bg))', color: 'hsl(var(--chat-foreground))' }}>
+          <div className="max-w-2xl w-full px-4 space-y-8">
+            {/* Welcome heading */}
+            <div className="text-center space-y-3">
+              <div className="mx-auto w-14 h-14 rounded-2xl bg-primary/10 flex items-center justify-center">
+                {contextReady ? (
+                  <Sparkles className="h-7 w-7 text-primary" />
+                ) : (
+                  <Brain className="h-7 w-7 text-primary" />
+                )}
+              </div>
+              <h1 className="text-2xl font-semibold">
+                {contextReady ? "What would you like to know?" : "Tell us about your product"}
+              </h1>
+              <p className="text-muted-foreground text-sm max-w-md mx-auto">
+                {contextReady
+                  ? "Ask analytics questions, explore your data, or dive into user behavior."
+                  : "Share what your product does so we can tailor the analytics experience for you."
+                }
+              </p>
+            </div>
+
+            {/* Prompt suggestions */}
+            <div className="flex flex-wrap gap-2 justify-center">
+              {contextReady ? (
+                <>
+                  <PromptSuggestion onClick={() => { setInput("How many visitors hit my landing page this week?"); }}>How many visitors this week?</PromptSuggestion>
+                  <PromptSuggestion onClick={() => { setInput("Show me top events by count"); }}>Top events by count</PromptSuggestion>
+                  <PromptSuggestion onClick={() => { setInput("What's my signup conversion rate?"); }}>Signup conversion rate</PromptSuggestion>
+                  <PromptSuggestion onClick={() => { setInput("Show me daily active users trend"); }}>DAU trend</PromptSuggestion>
+                </>
+              ) : (
+                <>
+                  <PromptSuggestion onClick={() => { setInput("We're building a SaaS for small businesses"); }}>Describe my product</PromptSuggestion>
+                  <PromptSuggestion onClick={() => { setInput("Our target audience is startup founders"); }}>Define my audience</PromptSuggestion>
+                  <PromptSuggestion onClick={() => { setInput("We want to increase user retention"); }}>Share my goals</PromptSuggestion>
+                </>
+              )}
+            </div>
+
+            {/* Input area */}
+            <div className="space-y-3">
+              {isCreditsExhausted && (
+                <div className="text-center text-sm text-destructive font-medium py-2 flex items-center justify-center gap-3">
+                  <span>You've used all your credits.</span>
+                  {onOpenPricing && (
+                    <Button variant="default" size="sm" className="text-xs gap-1" onClick={onOpenPricing}>
+                      <Coins className="h-3 w-3" />
+                      Buy Credits
+                    </Button>
+                  )}
+                </div>
+              )}
+              <div className="relative">
+                <Textarea
+                  ref={inputRef}
+                  className="min-h-[56px] max-h-[160px] resize-none rounded-xl pr-12 text-sm"
+                  placeholder={isCreditsExhausted ? "No credits remaining..." : contextReady ? "Ask me anything about your analytics..." : "Tell us about your business..."}
+                  value={input}
+                  onChange={(e) => setInput(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter" && !e.shiftKey && !e.metaKey && !e.ctrlKey) {
+                      e.preventDefault();
+                      send();
+                    }
+                  }}
+                  disabled={isCreditsExhausted}
+                />
+                <Button
+                  size="icon"
+                  className="absolute bottom-2 right-2 rounded-full h-8 w-8"
+                  onClick={send}
+                  disabled={!input.trim()}
+                >
+                  <Send className="h-4 w-4" />
+                </Button>
+              </div>
+            </div>
+          </div>
+        </div>
+      );
+    }
+
+    // Active chat layout (has messages)
     return (
       <div className="flex flex-col h-full" style={{ background: 'hsl(var(--chat-bg))', color: 'hsl(var(--chat-foreground))' }}>
         {/* Top bar with understanding %, memory, and delete */}
@@ -487,27 +575,9 @@ export function StepBusinessContext({ data, onUpdate, onFinish, onClearContext, 
           </div>
         </div>
 
-        {/* Prompt suggestions + Input area */}
+        {/* Input area */}
         <div className="border-t border-border px-4 py-3" style={{ background: 'hsl(var(--chat-bg))' }}>
           <div className="max-w-2xl mx-auto space-y-3">
-            {messages.length <= 2 && !isLoading && (
-              <div className="flex flex-wrap gap-2 justify-center">
-                {contextReady ? (
-                  <>
-                    <PromptSuggestion onClick={() => { setInput("How many visitors hit my landing page this week?"); }}>How many visitors this week?</PromptSuggestion>
-                    <PromptSuggestion onClick={() => { setInput("Show me top events by count"); }}>Top events by count</PromptSuggestion>
-                    <PromptSuggestion onClick={() => { setInput("What's my signup conversion rate?"); }}>Signup conversion rate</PromptSuggestion>
-                    <PromptSuggestion onClick={() => { setInput("Show me daily active users trend"); }}>DAU trend</PromptSuggestion>
-                  </>
-                ) : (
-                  <>
-                    <PromptSuggestion onClick={() => { setInput("We're building a SaaS for small businesses"); }}>Describe my product</PromptSuggestion>
-                    <PromptSuggestion onClick={() => { setInput("Our target audience is startup founders"); }}>Define my audience</PromptSuggestion>
-                    <PromptSuggestion onClick={() => { setInput("We want to increase user retention"); }}>Share my goals</PromptSuggestion>
-                  </>
-                )}
-              </div>
-            )}
             {isCreditsExhausted && (
               <div className="text-center text-sm text-destructive font-medium py-2 flex items-center justify-center gap-3">
                 <span>You've used all your credits.</span>
