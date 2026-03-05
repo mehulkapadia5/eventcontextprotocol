@@ -188,7 +188,7 @@ export function PricingModal({ open, onOpenChange, onSuccess, userEmail }: Prici
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto p-0">
+      <DialogContent className="max-w-4xl p-0">
         <div className="p-6 pb-0">
           <DialogHeader>
             <DialogTitle className="text-center text-2xl font-semibold">Pricing</DialogTitle>
