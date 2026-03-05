@@ -285,18 +285,19 @@ export function PricingModal({ open, onOpenChange, onSuccess, userEmail }: Prici
               </div>
 
               {/* Price */}
-              <div className="mb-1">
-                <span className="text-3xl font-bold">
-                  {isINR ? plan.priceINR : plan.priceUSD}
-                </span>
-                {plan.period && (
-                  <span className="text-sm text-muted-foreground ml-1.5">{plan.period}</span>
-                )}
+              <div className="h-[4.5rem]">
+                <div className="mb-1">
+                  <span className="text-3xl font-bold">
+                    {isINR ? plan.priceINR : plan.priceUSD}
+                  </span>
+                  {plan.period && (
+                    <span className="text-sm text-muted-foreground ml-1.5">{plan.period}</span>
+                  )}
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  {plan.subtitle || "\u00A0"}
+                </p>
               </div>
-              {plan.subtitle && (
-                <p className="text-xs text-muted-foreground mb-4">{plan.subtitle}</p>
-              )}
-              {!plan.subtitle && <div className="mb-4" />}
 
               {/* CTA */}
               <Button
