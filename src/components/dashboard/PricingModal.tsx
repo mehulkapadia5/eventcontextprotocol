@@ -3,7 +3,8 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Check, Loader2, Sparkles, Zap, Rocket } from "lucide-react";
+import { Check, Loader2, Sparkles, Zap, Rocket, TrendingUp, Building2, Plus } from "lucide-react";
+import { Separator } from "@/components/ui/separator";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 
@@ -22,35 +23,66 @@ interface PricingModalProps {
 
 const PLANS = [
   {
-    id: "starter",
-    name: "Starter",
-    credits: 50,
-    price: "₹499",
-    pricePerCredit: "₹9.98",
+    id: "free",
+    name: "Free",
+    queries: "20/mo",
+    price: "$0",
     icon: Sparkles,
     popular: false,
-    features: ["50 chat messages", "Basic analytics queries", "Email support"],
+    features: ["20 queries per month", "Basic analytics", "Community support"],
+    cta: "Current Plan",
+    disabled: true,
+  },
+  {
+    id: "starter",
+    name: "Starter",
+    queries: "100/mo",
+    price: "$20",
+    icon: Zap,
+    popular: false,
+    features: ["100 queries per month", "Advanced analytics", "Email support"],
+    cta: "Get Starter",
+    disabled: false,
   },
   {
     id: "pro",
     name: "Pro",
-    credits: 200,
-    price: "₹1,499",
-    pricePerCredit: "₹7.50",
-    icon: Zap,
+    queries: "350/mo",
+    price: "$50",
+    icon: Rocket,
     popular: true,
-    features: ["200 chat messages", "Advanced analytics", "Priority support", "Custom context"],
+    features: ["350 queries per month", "Full analytics suite", "Priority support", "Custom context"],
+    cta: "Get Pro",
+    disabled: false,
   },
   {
     id: "business",
     name: "Business",
-    credits: 500,
-    price: "₹2,999",
-    pricePerCredit: "₹6.00",
-    icon: Rocket,
+    queries: "1,000/mo",
+    price: "$100",
+    icon: Building2,
     popular: false,
-    features: ["500 chat messages", "Full analytics suite", "Dedicated support", "Custom integrations", "Team access"],
+    features: ["1,000 queries per month", "Dedicated support", "Custom integrations", "Team access"],
+    cta: "Get Business",
+    disabled: false,
   },
+  {
+    id: "scale",
+    name: "Scale",
+    queries: "3,000/mo",
+    price: "$250",
+    icon: TrendingUp,
+    popular: false,
+    features: ["3,000 queries per month", "White-glove onboarding", "SLA guarantee", "Unlimited team members"],
+    cta: "Get Scale",
+    disabled: false,
+  },
+];
+
+const ADDONS = [
+  { id: "addon_50", queries: 50, price: "$12", description: "Occasional overages" },
+  { id: "addon_150", queries: 150, price: "$30", description: "Regular top-ups" },
+  { id: "addon_500", queries: 500, price: "$80", description: "Heavy months" },
 ];
 
 function loadRazorpayScript(): Promise<boolean> {
@@ -138,57 +170,104 @@ export function PricingModal({ open, onOpenChange, onSuccess, userEmail }: Prici
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-3xl">
+      <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle className="text-center text-2xl">Get More Credits</DialogTitle>
+          <DialogTitle className="text-center text-2xl">Choose Your Plan</DialogTitle>
           <p className="text-center text-muted-foreground text-sm">
-            Choose a plan that fits your needs
+            Pick the plan that fits your team. Upgrade or top up anytime.
           </p>
         </DialogHeader>
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 py-4">
+
+        {/* Subscription Tiers */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3 py-4">
           {PLANS.map((plan) => (
             <Card
               key={plan.id}
-              className={`relative flex flex-col ${plan.popular ? "border-primary shadow-md" : ""}`}
+              className={`relative flex flex-col ${plan.popular ? "border-primary shadow-md ring-1 ring-primary/20" : ""}`}
             >
               {plan.popular && (
-                <Badge className="absolute -top-2.5 left-1/2 -translate-x-1/2 text-xs">
-                  Most Popular
+                <Badge className="absolute -top-2.5 left-1/2 -translate-x-1/2 text-xs whitespace-nowrap">
+                  ⭐ Most Popular
                 </Badge>
               )}
-              <CardHeader className="text-center pb-2">
-                <plan.icon className="h-8 w-8 mx-auto text-primary mb-2" />
-                <CardTitle className="text-lg">{plan.name}</CardTitle>
-                <div className="mt-2">
-                  <span className="text-3xl font-bold">{plan.price}</span>
+              <CardHeader className="text-center pb-2 px-3 pt-5">
+                <plan.icon className="h-6 w-6 mx-auto text-primary mb-1.5" />
+                <CardTitle className="text-base">{plan.name}</CardTitle>
+                <div className="mt-1">
+                  <span className="text-2xl font-bold">{plan.price}</span>
+                  {plan.id !== "free" && <span className="text-xs text-muted-foreground">/mo</span>}
                 </div>
-                <p className="text-xs text-muted-foreground">
-                  {plan.credits} credits · {plan.pricePerCredit}/credit
+                <p className="text-xs text-muted-foreground font-medium">
+                  {plan.queries} queries
                 </p>
               </CardHeader>
-              <CardContent className="flex-1 flex flex-col">
-                <ul className="space-y-2 flex-1 mb-4">
+              <CardContent className="flex-1 flex flex-col px-3 pb-4">
+                <ul className="space-y-1.5 flex-1 mb-3">
                   {plan.features.map((f) => (
-                    <li key={f} className="flex items-start gap-2 text-sm">
-                      <Check className="h-4 w-4 text-primary shrink-0 mt-0.5" />
+                    <li key={f} className="flex items-start gap-1.5 text-xs">
+                      <Check className="h-3.5 w-3.5 text-primary shrink-0 mt-0.5" />
                       <span>{f}</span>
                     </li>
                   ))}
                 </ul>
                 <Button
                   className="w-full"
-                  variant={plan.popular ? "default" : "outline"}
-                  disabled={!!loadingPlan}
+                  size="sm"
+                  variant={plan.popular ? "default" : plan.disabled ? "secondary" : "outline"}
+                  disabled={plan.disabled || !!loadingPlan}
                   onClick={() => handlePurchase(plan.id)}
                 >
                   {loadingPlan === plan.id ? (
-                    <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                    <Loader2 className="h-4 w-4 animate-spin mr-1" />
                   ) : null}
-                  Buy {plan.name}
+                  {plan.cta}
                 </Button>
+                {!plan.disabled && plan.id !== "free" && (
+                  <p className="text-[10px] text-muted-foreground text-center mt-1.5">
+                    Need more? <span className="text-primary font-medium">Top up anytime →</span>
+                  </p>
+                )}
               </CardContent>
             </Card>
           ))}
+        </div>
+
+        <Separator />
+
+        {/* Add-on Credits */}
+        <div className="py-3">
+          <div className="text-center mb-3">
+            <h3 className="text-base font-semibold flex items-center justify-center gap-1.5">
+              <Plus className="h-4 w-4 text-primary" />
+              Running low? Buy extra queries
+            </h3>
+            <p className="text-xs text-muted-foreground">
+              No subscription needed. Credits never expire — use them anytime.
+            </p>
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+            {ADDONS.map((addon) => (
+              <Card key={addon.id} className="flex flex-col">
+                <CardContent className="flex items-center justify-between p-4">
+                  <div>
+                    <p className="font-semibold text-sm">{addon.queries} queries</p>
+                    <p className="text-xs text-muted-foreground">{addon.description}</p>
+                  </div>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    disabled={!!loadingPlan}
+                    onClick={() => handlePurchase(addon.id)}
+                  >
+                    {loadingPlan === addon.id ? (
+                      <Loader2 className="h-4 w-4 animate-spin mr-1" />
+                    ) : null}
+                    {addon.price}
+                  </Button>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
         </div>
       </DialogContent>
     </Dialog>
