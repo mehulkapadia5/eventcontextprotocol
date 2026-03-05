@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { Check, Sparkles, Zap, Rocket, Building2, Plus } from "lucide-react";
+import { Check, Sparkles, Zap, Rocket, Building2, Plus, Crown } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 
@@ -85,6 +85,25 @@ const PLANS = [
       "Onboarding services",
     ],
   },
+  {
+    id: "unlimited",
+    name: "Unlimited",
+    description: "For power users and teams who never want to worry about limits.",
+    priceUSD: "$399",
+    priceINR: "₹35,999",
+    period: "per month",
+    subtitle: "No query limits",
+    icon: Crown,
+    popular: false,
+    cta: "Get Started",
+    features: [
+      "Everything in Business, plus:",
+      "Unlimited queries",
+      "Dedicated account manager",
+      "Custom integrations",
+      "SLA guarantee",
+    ],
+  },
 ];
 
 const ADDONS = [
@@ -131,7 +150,7 @@ export function PricingSection() {
       <div
         style={{
           display: "grid",
-          gridTemplateColumns: "repeat(4, 1fr)",
+          gridTemplateColumns: "repeat(5, 1fr)",
           gap: 0,
           borderTop: "1px solid #ddd",
           borderBottom: "1px solid #ddd",

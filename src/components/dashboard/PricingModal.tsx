@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Check, Loader2, Sparkles, Zap, Rocket, Building2, Plus } from "lucide-react";
+import { Check, Loader2, Sparkles, Zap, Rocket, Building2, Plus, Crown } from "lucide-react";
 import { Separator } from "@/components/ui/separator";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
@@ -124,6 +124,26 @@ const PLANS: PlanDef[] = [
       "Onboarding services",
     ],
   },
+  {
+    id: "unlimited",
+    name: "Unlimited",
+    description: "For power users and teams who never want to worry about limits.",
+    priceUSD: "$399",
+    priceINR: "₹35,999",
+    period: "per month",
+    subtitle: "No query limits",
+    icon: Crown,
+    popular: false,
+    cta: "Get Started",
+    disabled: false,
+    features: [
+      "Everything in Business, plus:",
+      "Unlimited queries",
+      "Dedicated account manager",
+      "Custom integrations",
+      "SLA guarantee",
+    ],
+  },
 ];
 
 interface AddonDef {
@@ -230,7 +250,7 @@ export function PricingModal({ open, onOpenChange, onSuccess, userEmail }: Prici
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-5xl p-0">
+      <DialogContent className="max-w-6xl p-0">
         <div className="p-6 pb-0">
           <DialogHeader>
             <DialogTitle className="text-center text-2xl font-semibold">Pricing</DialogTitle>
@@ -259,7 +279,7 @@ export function PricingModal({ open, onOpenChange, onSuccess, userEmail }: Prici
         </div>
 
         {/* Subscription Tiers */}
-        <div className="grid grid-cols-4 gap-0 border-t border-border mx-6 mt-4">
+        <div className="grid grid-cols-5 gap-0 border-t border-border mx-6 mt-4">
           {PLANS.map((plan, index) => (
             <div
               key={plan.id}
