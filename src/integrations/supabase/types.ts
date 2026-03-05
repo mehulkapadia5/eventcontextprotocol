@@ -108,6 +108,33 @@ export type Database = {
           },
         ]
       }
+      credit_transactions: {
+        Row: {
+          admin_id: string | null
+          amount: number
+          created_at: string
+          id: string
+          reason: string
+          user_id: string
+        }
+        Insert: {
+          admin_id?: string | null
+          amount: number
+          created_at?: string
+          id?: string
+          reason?: string
+          user_id: string
+        }
+        Update: {
+          admin_id?: string | null
+          amount?: number
+          created_at?: string
+          id?: string
+          reason?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       event_annotations: {
         Row: {
           category: string | null
@@ -381,6 +408,30 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      user_credits: {
+        Row: {
+          created_at: string
+          credits_remaining: number
+          id: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          credits_remaining?: number
+          id?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          credits_remaining?: number
+          id?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
       }
       user_roles: {
         Row: {
