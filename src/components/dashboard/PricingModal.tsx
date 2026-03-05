@@ -84,7 +84,6 @@ const PLANS: PlanDef[] = [
       "100 monthly queries",
       "Advanced analytics",
       "Email support",
-      "Custom context",
     ],
   },
   {
@@ -104,7 +103,6 @@ const PLANS: PlanDef[] = [
       "350 monthly queries",
       "Priority support",
       "Team access",
-      "Custom integrations",
     ],
   },
   {
@@ -124,7 +122,6 @@ const PLANS: PlanDef[] = [
       "1,000 monthly queries",
       "Dedicated support",
       "Onboarding services",
-      "SLA guarantee",
     ],
   },
 ];
