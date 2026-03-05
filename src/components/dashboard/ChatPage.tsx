@@ -334,15 +334,13 @@ export function ChatPage() {
         {credits !== null && (
           <div className="px-3 py-2 border-b border-border flex flex-col gap-2">
             <div className="flex items-center gap-2 text-xs">
-              <Coins className="h-3.5 w-3.5 text-primary" />
-              <span className="text-muted-foreground">Credits:</span>
+              <span className="text-muted-foreground">Free Messages Left:</span>
               <Badge variant={isExhausted ? "destructive" : isLow ? "secondary" : "default"} className="text-xs px-1.5 py-0">
                 {credits}
               </Badge>
             </div>
             {(isExhausted || isLow) && (
-              <Button variant="default" size="sm" className="w-full text-xs gap-1" onClick={() => setPricingOpen(true)}>
-                <Coins className="h-3 w-3" />
+              <Button variant="default" size="sm" className="w-full text-xs" onClick={() => setPricingOpen(true)}>
                 Buy Credits
               </Button>
             )}
