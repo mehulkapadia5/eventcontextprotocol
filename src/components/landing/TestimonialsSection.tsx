@@ -14,7 +14,7 @@ const testimonials = [
   {
     quote: "This makes my life so much simpler. Back in the day we had to hire a huge data analytics team, instrument products and have analyst team take weeks to get data — I'm doing it in seconds using simple prompts. This saves us thousands of dollars and countless man hours. Can't go back to older tools.",
     name: "Richard Davidson",
-    role: "Ex-Director, Business Development",
+    role: "Former Director, Business Development",
     company: "GetInsured",
     image: richardImg,
     initials: "RD",
