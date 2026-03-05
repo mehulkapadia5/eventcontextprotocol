@@ -497,8 +497,13 @@ export function StepBusinessContext({ data, onUpdate, onFinish, onClearContext, 
                 </Button>
               </div>
               {contextReady && credits !== null && credits !== undefined && (
-                <div className="text-center text-[11px] text-muted-foreground pt-1">
-                  Free Messages Left: <strong>{credits}</strong> · Resets daily at 12:00 AM IST
+                <div className="flex items-center justify-center gap-2 text-[11px] text-muted-foreground pt-1">
+                  <span>Free Messages Left: <strong>{credits}</strong> · Resets daily at 12:00 AM IST</span>
+                  {onOpenPricing && (
+                    <button onClick={onOpenPricing} className="text-primary hover:underline font-medium">
+                      Upgrade
+                    </button>
+                  )}
                 </div>
               )}
             </div>
@@ -624,8 +629,13 @@ export function StepBusinessContext({ data, onUpdate, onFinish, onClearContext, 
               </Button>
             </div>
             {contextReady && credits !== null && credits !== undefined && (
-              <div className="text-center text-[11px] text-muted-foreground pt-1">
-                Free Messages Left: <strong>{credits}</strong> · Resets daily at 12:00 AM IST
+              <div className="flex items-center justify-center gap-2 text-[11px] text-muted-foreground pt-1">
+                <span>Free Messages Left: <strong>{credits}</strong> · Resets daily at 12:00 AM IST</span>
+                {onOpenPricing && (
+                  <button onClick={onOpenPricing} className="text-primary hover:underline font-medium">
+                    Upgrade
+                  </button>
+                )}
               </div>
             )}
           </div>
