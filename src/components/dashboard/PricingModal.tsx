@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -20,12 +20,41 @@ interface PricingModalProps {
   userEmail?: string;
 }
 
-const PLANS = [
+function useIsIndianUser(): boolean {
+  const [isIndian, setIsIndian] = useState(false);
+  useEffect(() => {
+    try {
+      const tz = Intl.DateTimeFormat().resolvedOptions().timeZone;
+      setIsIndian(tz === "Asia/Kolkata" || tz === "Asia/Calcutta");
+    } catch {
+      setIsIndian(false);
+    }
+  }, []);
+  return isIndian;
+}
+
+interface PlanDef {
+  id: string;
+  name: string;
+  description: string;
+  priceUSD: string;
+  priceINR: string;
+  period: string;
+  subtitle: string;
+  icon: typeof Sparkles;
+  popular: boolean;
+  cta: string;
+  disabled: boolean;
+  features: string[];
+}
+
+const PLANS: PlanDef[] = [
   {
     id: "free",
     name: "Free",
     description: "Explore Magnitude and see what it can do for you.",
-    price: "$0",
+    priceUSD: "$0",
+    priceINR: "₹0",
     period: "",
     subtitle: "Free forever",
     icon: Sparkles,
@@ -42,7 +71,8 @@ const PLANS = [
     id: "starter",
     name: "Starter",
     description: "For individuals getting started with product analytics.",
-    price: "$20",
+    priceUSD: "$20",
+    priceINR: "₹1,665",
     period: "per month",
     subtitle: "",
     icon: Zap,
@@ -61,7 +91,8 @@ const PLANS = [
     id: "pro",
     name: "Pro",
     description: "For teams that need deeper insights and more capacity.",
-    price: "$50",
+    priceUSD: "$50",
+    priceINR: "₹4,163",
     period: "per month",
     subtitle: "",
     icon: Rocket,
@@ -80,7 +111,8 @@ const PLANS = [
     id: "business",
     name: "Business",
     description: "Built for orgs needing flexibility, scale, and governance.",
-    price: "$100",
+    priceUSD: "$100",
+    priceINR: "₹8,325",
     period: "per month",
     subtitle: "Flexible billing",
     icon: Building2,
@@ -97,10 +129,18 @@ const PLANS = [
   },
 ];
 
-const ADDONS = [
-  { id: "addon_50", queries: 50, price: "$12", description: "Occasional overages" },
-  { id: "addon_150", queries: 150, price: "$30", description: "Regular top-ups" },
-  { id: "addon_500", queries: 500, price: "$80", description: "Heavy months" },
+interface AddonDef {
+  id: string;
+  queries: number;
+  priceUSD: string;
+  priceINR: string;
+  description: string;
+}
+
+const ADDONS: AddonDef[] = [
+  { id: "addon_50", queries: 50, priceUSD: "$12", priceINR: "₹999", description: "Occasional overages" },
+  { id: "addon_150", queries: 150, priceUSD: "$30", priceINR: "₹2,499", description: "Regular top-ups" },
+  { id: "addon_500", queries: 500, priceUSD: "$80", priceINR: "₹6,663", description: "Heavy months" },
 ];
 
 function loadRazorpayScript(): Promise<boolean> {
@@ -119,6 +159,8 @@ function loadRazorpayScript(): Promise<boolean> {
 
 export function PricingModal({ open, onOpenChange, onSuccess, userEmail }: PricingModalProps) {
   const [loadingPlan, setLoadingPlan] = useState<string | null>(null);
+  const isIndian = useIsIndianUser();
+  const currency = isIndian ? "INR" : "USD";
 
   const handlePurchase = async (planId: string) => {
     setLoadingPlan(planId);
@@ -130,7 +172,7 @@ export function PricingModal({ open, onOpenChange, onSuccess, userEmail }: Prici
       }
 
       const { data: orderData, error } = await supabase.functions.invoke("razorpay-create-order", {
-        body: { plan_id: planId },
+        body: { plan_id: planId, currency },
       });
 
       if (error || orderData?.error) {
@@ -204,7 +246,7 @@ export function PricingModal({ open, onOpenChange, onSuccess, userEmail }: Prici
             <div
               key={plan.id}
               className={`flex flex-col p-5 ${
-                index < PLANS.length - 1 ? "lg:border-r border-border" : ""
+                index < PLANS.length - 1 ? "md:border-r border-border" : ""
               } ${plan.popular ? "bg-accent/30" : ""}`}
             >
               {/* Header */}
@@ -224,7 +266,9 @@ export function PricingModal({ open, onOpenChange, onSuccess, userEmail }: Prici
 
               {/* Price */}
               <div className="mb-1">
-                <span className="text-3xl font-bold">{plan.price}</span>
+                <span className="text-3xl font-bold">
+                  {isIndian ? plan.priceINR : plan.priceUSD}
+                </span>
                 {plan.period && (
                   <span className="text-sm text-muted-foreground ml-1.5">{plan.period}</span>
                 )}
@@ -299,7 +343,7 @@ export function PricingModal({ open, onOpenChange, onSuccess, userEmail }: Prici
                   {loadingPlan === addon.id && (
                     <Loader2 className="h-3.5 w-3.5 animate-spin mr-1" />
                   )}
-                  {addon.price}
+                  {isIndian ? addon.priceINR : addon.priceUSD}
                 </Button>
               </div>
             ))}
