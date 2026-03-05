@@ -9,12 +9,12 @@ const corsHeaders = {
 
 // Plans with both USD (cents) and INR (paise) pricing
 const PLANS: Record<string, { name: string; credits: number; usd_cents: number; inr_paise: number }> = {
-  starter:   { name: "Starter",   credits: 100,  usd_cents: 2000,   inr_paise: 166500 },
-  pro:       { name: "Pro",       credits: 350,  usd_cents: 5000,   inr_paise: 416300 },
-  business:  { name: "Business",  credits: 1000, usd_cents: 10000,  inr_paise: 832500 },
-  addon_50:  { name: "50 Queries",  credits: 50,  usd_cents: 1200,  inr_paise: 99900 },
-  addon_150: { name: "150 Queries", credits: 150, usd_cents: 3000,  inr_paise: 249900 },
-  addon_500: { name: "500 Queries", credits: 500, usd_cents: 8000,  inr_paise: 666300 },
+  starter:   { name: "Starter",   credits: 100,  usd_cents: 2000,   inr_paise: 189900 },
+  pro:       { name: "Pro",       credits: 350,  usd_cents: 5000,   inr_paise: 459900 },
+  business:  { name: "Business",  credits: 1000, usd_cents: 10000,  inr_paise: 899900 },
+  addon_50:  { name: "50 Queries",  credits: 50,  usd_cents: 1200,  inr_paise: 109900 },
+  addon_150: { name: "150 Queries", credits: 150, usd_cents: 3000,  inr_paise: 274900 },
+  addon_500: { name: "500 Queries", credits: 500, usd_cents: 8000,  inr_paise: 729900 },
 };
 
 serve(async (req) => {
