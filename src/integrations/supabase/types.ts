@@ -264,6 +264,45 @@ export type Database = {
           },
         ]
       }
+      payment_orders: {
+        Row: {
+          amount_paise: number
+          created_at: string
+          credits: number
+          id: string
+          plan_id: string
+          razorpay_order_id: string
+          razorpay_payment_id: string | null
+          status: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          amount_paise: number
+          created_at?: string
+          credits: number
+          id?: string
+          plan_id: string
+          razorpay_order_id: string
+          razorpay_payment_id?: string | null
+          status?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          amount_paise?: number
+          created_at?: string
+          credits?: number
+          id?: string
+          plan_id?: string
+          razorpay_order_id?: string
+          razorpay_payment_id?: string | null
+          status?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       profiles: {
         Row: {
           created_at: string

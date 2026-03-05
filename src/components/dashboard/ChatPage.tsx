@@ -4,6 +4,7 @@ import { useCredits } from "@/hooks/use-credits";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { StepBusinessContext } from "@/components/onboarding/StepBusinessContext";
+import { PricingModal } from "@/components/dashboard/PricingModal";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Badge } from "@/components/ui/badge";
@@ -27,6 +28,7 @@ export function ChatPage() {
   const { session } = useAuth();
   const { credits, isLow, isExhausted, consumeCredit, refetch: refetchCredits } = useCredits();
   const [data, setData] = useState<OnboardingData>({});
+  const [pricingOpen, setPricingOpen] = useState(false);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [resetKey, setResetKey] = useState(0);
@@ -308,12 +310,20 @@ export function ChatPage() {
           </Button>
         </div>
         {credits !== null && (
-          <div className="px-3 py-2 border-b border-border flex items-center gap-2 text-xs">
-            <Coins className="h-3.5 w-3.5 text-primary" />
-            <span className="text-muted-foreground">Credits:</span>
-            <Badge variant={isExhausted ? "destructive" : isLow ? "secondary" : "default"} className="text-xs px-1.5 py-0">
-              {credits}
-            </Badge>
+          <div className="px-3 py-2 border-b border-border flex flex-col gap-2">
+            <div className="flex items-center gap-2 text-xs">
+              <Coins className="h-3.5 w-3.5 text-primary" />
+              <span className="text-muted-foreground">Credits:</span>
+              <Badge variant={isExhausted ? "destructive" : isLow ? "secondary" : "default"} className="text-xs px-1.5 py-0">
+                {credits}
+              </Badge>
+            </div>
+            {(isExhausted || isLow) && (
+              <Button variant="default" size="sm" className="w-full text-xs gap-1" onClick={() => setPricingOpen(true)}>
+                <Coins className="h-3 w-3" />
+                Buy Credits
+              </Button>
+            )}
           </div>
         )}
         <div className="flex-1 overflow-y-auto overflow-x-hidden">
@@ -376,8 +386,16 @@ export function ChatPage() {
           isCreditsExhausted={isExhausted}
           onConsumeCredit={consumeCredit}
           onCreditsRefetch={refetchCredits}
+          onOpenPricing={() => setPricingOpen(true)}
         />
       </div>
+
+      <PricingModal
+        open={pricingOpen}
+        onOpenChange={setPricingOpen}
+        onSuccess={refetchCredits}
+        userEmail={session?.user?.email}
+      />
     </div>
   );
 }
