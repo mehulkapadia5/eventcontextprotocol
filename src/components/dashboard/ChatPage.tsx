@@ -157,6 +157,21 @@ export function ChatPage() {
     setResetKey((k) => k + 1);
   };
 
+  // Ensure a conversation exists (for first message), returns conversation id
+  const ensureConversation = useCallback(async (): Promise<string | null> => {
+    if (activeConversationId) return activeConversationId;
+    if (!session?.user?.id) return null;
+    const { data: conv, error } = await supabase
+      .from("chat_conversations")
+      .insert({ user_id: session.user.id, title: "New Chat" })
+      .select()
+      .single();
+    if (error || !conv) return null;
+    setConversations((prev) => [conv as Conversation, ...prev]);
+    setActiveConversationId(conv.id);
+    return conv.id;
+  }, [activeConversationId, session?.user?.id]);
+
   // Delete conversation
   const handleDeleteConversation = async (id: string) => {
     const remaining = conversations.filter((c) => c.id !== id);
@@ -170,24 +185,32 @@ export function ChatPage() {
         // Switch to the next conversation
         loadConversation(remaining[0].id);
       } else {
-        // Create a fresh conversation
-        handleNewChat();
+        // No conversations left — go to empty state
+        setActiveConversationId(null);
+        setInitialMessages(undefined);
+        setResetKey((k) => k + 1);
       }
     }
   };
 
   // Save messages callback - called by StepBusinessContext after each exchange
   const handleMessagesChange = useCallback(async (messages: { role: "user" | "assistant"; content: string }[]) => {
-    if (!session?.user?.id || !activeConversationId) return;
+    if (!session?.user?.id) return;
+    // Ensure a conversation exists
+    let convId = activeConversationId;
+    if (!convId) {
+      convId = await ensureConversation();
+      if (!convId) return;
+    }
     // Only save user and assistant messages (skip system)
     const toSave = messages.filter((m) => m.role === "user" || m.role === "assistant");
     if (toSave.length === 0) return;
 
     // Delete existing messages and re-insert (simple approach)
-    await supabase.from("chat_messages").delete().eq("conversation_id", activeConversationId);
+    await supabase.from("chat_messages").delete().eq("conversation_id", convId);
     await supabase.from("chat_messages").insert(
       toSave.map((m) => ({
-        conversation_id: activeConversationId,
+        conversation_id: convId,
         role: m.role,
         content: m.content,
       }))
@@ -197,21 +220,20 @@ export function ChatPage() {
     const firstUserMsg = toSave.find((m) => m.role === "user");
     if (firstUserMsg) {
       const title = firstUserMsg.content.slice(0, 50) + (firstUserMsg.content.length > 50 ? "..." : "");
-      await supabase.from("chat_conversations").update({ title }).eq("id", activeConversationId);
+      await supabase.from("chat_conversations").update({ title }).eq("id", convId);
       setConversations((prev) =>
-        prev.map((c) => (c.id === activeConversationId ? { ...c, title, updated_at: new Date().toISOString() } : c))
+        prev.map((c) => (c.id === convId ? { ...c, title, updated_at: new Date().toISOString() } : c))
       );
     }
-  }, [session?.user?.id, activeConversationId]);
+  }, [session?.user?.id, activeConversationId, ensureConversation]);
 
-  // Auto-create first conversation if none exist
+  // On load: reuse the most recent conversation, or start with no active conversation (empty state)
   useEffect(() => {
-    if (!loading && session?.user?.id && conversations.length === 0 && !activeConversationId) {
-      handleNewChat();
-    } else if (!loading && conversations.length > 0 && !activeConversationId) {
+    if (!loading && conversations.length > 0 && !activeConversationId) {
       // Load most recent conversation
       loadConversation(conversations[0].id);
     }
+    // If no conversations exist, don't auto-create — show the empty/centered state instead
   }, [loading, session?.user?.id, conversations.length]);
 
   const handleFinish = async (businessOverride?: { product_description?: string; audience?: string; goals?: string; [key: string]: string | undefined }) => {
