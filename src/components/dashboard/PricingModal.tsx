@@ -188,7 +188,7 @@ export function PricingModal({ open, onOpenChange, onSuccess, userEmail }: Prici
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-4xl p-0">
+      <DialogContent className="max-w-5xl p-0">
         <div className="p-6 pb-0">
           <DialogHeader>
             <DialogTitle className="text-center text-2xl font-semibold">Pricing</DialogTitle>
@@ -199,7 +199,7 @@ export function PricingModal({ open, onOpenChange, onSuccess, userEmail }: Prici
         </div>
 
         {/* Subscription Tiers */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-0 border-t border-border mx-6 mt-4">
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-0 border-t border-border mx-6 mt-4">
           {PLANS.map((plan, index) => (
             <div
               key={plan.id}
