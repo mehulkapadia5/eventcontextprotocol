@@ -159,8 +159,10 @@ function loadRazorpayScript(): Promise<boolean> {
 
 export function PricingModal({ open, onOpenChange, onSuccess, userEmail }: PricingModalProps) {
   const [loadingPlan, setLoadingPlan] = useState<string | null>(null);
-  const isIndian = useIsIndianUser();
-  const currency = isIndian ? "INR" : "USD";
+  const isIndianDefault = useIsIndianUser();
+  const [showINR, setShowINR] = useState<boolean | null>(null);
+  const isINR = showINR ?? isIndianDefault;
+  const currency = isINR ? "INR" : "USD";
 
   const handlePurchase = async (planId: string) => {
     setLoadingPlan(planId);
@@ -237,6 +239,24 @@ export function PricingModal({ open, onOpenChange, onSuccess, userEmail }: Prici
             <p className="text-center text-muted-foreground text-sm">
               Start for free. Upgrade to get the capacity that matches your needs.
             </p>
+            <div className="flex items-center justify-center gap-2 mt-2">
+              <Button
+                size="sm"
+                variant={isINR ? "default" : "outline"}
+                className="text-xs px-3 h-7"
+                onClick={() => setShowINR(true)}
+              >
+                INR ₹
+              </Button>
+              <Button
+                size="sm"
+                variant={!isINR ? "default" : "outline"}
+                className="text-xs px-3 h-7"
+                onClick={() => setShowINR(false)}
+              >
+                USD $
+              </Button>
+            </div>
           </DialogHeader>
         </div>
 
@@ -267,7 +287,7 @@ export function PricingModal({ open, onOpenChange, onSuccess, userEmail }: Prici
               {/* Price */}
               <div className="mb-1">
                 <span className="text-3xl font-bold">
-                  {isIndian ? plan.priceINR : plan.priceUSD}
+                  {isINR ? plan.priceINR : plan.priceUSD}
                 </span>
                 {plan.period && (
                   <span className="text-sm text-muted-foreground ml-1.5">{plan.period}</span>
@@ -343,7 +363,7 @@ export function PricingModal({ open, onOpenChange, onSuccess, userEmail }: Prici
                   {loadingPlan === addon.id && (
                     <Loader2 className="h-3.5 w-3.5 animate-spin mr-1" />
                   )}
-                  {isIndian ? addon.priceINR : addon.priceUSD}
+                  {isINR ? addon.priceINR : addon.priceUSD}
                 </Button>
               </div>
             ))}
