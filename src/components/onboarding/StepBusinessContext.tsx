@@ -496,6 +496,11 @@ export function StepBusinessContext({ data, onUpdate, onFinish, onClearContext, 
                   <Send className="h-4 w-4" />
                 </Button>
               </div>
+              {contextReady && credits !== null && credits !== undefined && (
+                <div className="text-center text-[11px] text-muted-foreground pt-1">
+                  Free Messages Left: <strong>{credits}</strong> · Resets daily at 12:00 AM IST
+                </div>
+              )}
             </div>
           </div>
         </div>
@@ -618,6 +623,11 @@ export function StepBusinessContext({ data, onUpdate, onFinish, onClearContext, 
                 <Send className="h-4 w-4" />
               </Button>
             </div>
+            {contextReady && credits !== null && credits !== undefined && (
+              <div className="text-center text-[11px] text-muted-foreground pt-1">
+                Free Messages Left: <strong>{credits}</strong> · Resets daily at 12:00 AM IST
+              </div>
+            )}
           </div>
         </div>
       </div>
