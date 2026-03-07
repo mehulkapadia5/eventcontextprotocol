@@ -304,7 +304,7 @@ export function PricingModal({ open, onOpenChange, onSuccess, userEmail }: Prici
               </div>
 
               {/* Price */}
-              <div className="h-[4.5rem] mb-1">
+              <div className="mb-4">
                 <div>
                   <span className="text-2xl font-bold">
                     {isINR ? plan.priceINR : plan.priceUSD}

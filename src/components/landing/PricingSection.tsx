@@ -184,7 +184,7 @@ export function PricingSection() {
             </p>
 
             {/* Price */}
-            <div style={{ height: 72 }}>
+            <div style={{ marginBottom: 20 }}>
               <div style={{ marginBottom: 4 }}>
                 <span style={{ fontSize: "2.2rem", fontWeight: 700, color: "#0a0a0f" }}>
                   {showINR ? plan.priceINR : plan.priceUSD}
